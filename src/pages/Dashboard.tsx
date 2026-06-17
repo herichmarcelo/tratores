@@ -74,51 +74,57 @@ export const Dashboard: React.FC = () => {
           <p className="text-gray-500 mt-1">Visão geral da frota</p>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <DashboardCard
-                title="Tratores Ativos"
-                value={12}
-                icon={Tractor}
-                colorClass="bg-primary-600"
-            />
-            <DashboardCard
-                title="Consumo Hoje"
-                value="156 L"
-                icon={Fuel}
-                colorClass="bg-amber-500"
-            />
-            <DashboardCard
-                title="Pneus com Alerta"
-                value={3}
-                icon={Truck}
-                colorClass="bg-red-500"
-            />
-            <DashboardCard
-                title="Em Manutenção"
-                value={2}
-                icon={Wrench}
-                colorClass="bg-blue-500"
-            />
-            <DashboardCard
-                title="Checklists Pendentes"
-                value={5}
-                icon={ClipboardList}
-                colorClass="bg-purple-500"
-            />
-            <DashboardCard
-                title="Custo Mensal Diesel"
-                value="R$ 12.450"
-                icon={DollarSign}
-                colorClass="bg-emerald-600"
-            />
-            <DashboardCard
-                title="Operadores Ativos"
-                value={8}
-                icon={Users}
-                colorClass="bg-indigo-500"
-            />
-        </div>
+        <DashboardCard
+          title="Tratores Ativos"
+          value={12}
+          icon={Tractor}
+          colorClass="bg-primary-600"
+        />
+        <DashboardCard
+          title="Consumo Hoje"
+          value="156 L"
+          icon={Fuel}
+          colorClass="bg-amber-500"
+        />
+        <DashboardCard
+          title="Pneus com Alerta"
+          value={3}
+          icon={Truck}
+          colorClass="bg-red-500"
+        />
+        <DashboardCard
+          title="Em Manutenção"
+          value={2}
+          icon={Wrench}
+          colorClass="bg-blue-500"
+        />
+        <DashboardCard
+          title="Checklists Pendentes"
+          value={5}
+          icon={ClipboardList}
+          colorClass="bg-purple-500"
+        />
+        <DashboardCard
+          title="Custo Mensal Diesel"
+          value="R$ 12.450"
+          icon={DollarSign}
+          colorClass="bg-emerald-600"
+        />
+        <DashboardCard
+          title="Eficiência da Frota"
+          value="92%"
+          icon={TrendingUp}
+          colorClass="bg-teal-500"
+        />
+        <DashboardCard
+          title="Operadores Ativos"
+          value={8}
+          icon={Users}
+          colorClass="bg-indigo-500"
+        />
+      </div>
 
       {/* Eficiência da Frota Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -141,34 +147,35 @@ export const Dashboard: React.FC = () => {
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <span className="text-primary-600">🚜</span>
-              Melhor Trator
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <p className="text-xl font-bold text-gray-900">TR-001</p>
-              <p className="text-sm text-gray-600">John Deere 6110J</p>
-              <p className="text-3xl font-bold text-green-600">97%</p>
-            </div>
-          </CardContent>
-        </Card>
+                <span className="text-primary-600">🚜</span>
+                Melhor Trator
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <p className="text-xl font-bold text-gray-900">TR-001</p>
+                <p className="text-sm text-gray-600">John Deere 6110J</p>
+                <p className="text-3xl font-bold text-green-600">97%</p>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="border-none shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <span className="text-red-600">🚜</span>
-              Pior Trator
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <p className="text-xl font-bold text-gray-900">TR-007</p>
-              <p className="text-sm text-gray-600">New Holland TT4.75</p>
-              <p className="text-3xl font-bold text-red-600">63%</p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="border-none shadow-md">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-red-600">🚜</span>
+                Pior Trator
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <p className="text-xl font-bold text-gray-900">TR-007</p>
+                <p className="text-sm text-gray-600">New Holland TT4.75</p>
+                <p className="text-3xl font-bold text-red-600">63%</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
