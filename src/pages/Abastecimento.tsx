@@ -540,26 +540,34 @@ export const Abastecimento: React.FC = () => {
 
             <Card className="border-none shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-gray-900">Eficiência do Trator</CardTitle>
+                <CardTitle className="text-lg font-semibold text-gray-900">🌱 Índice de Aproveitamento Operacional</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-gray-500">Média dos últimos 7 abastecimentos</p>
-                <div className="flex items-center justify-center">
-                  <div className="relative w-44 h-22 overflow-hidden">
-                    <svg className="w-full h-full" viewBox="0 0 100 50">
-                      <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                      <path d="M 10 45 A 40 40 0 0 1 62 38" fill="none" stroke="#0f6d2b" strokeWidth="8" />
-                    </svg>
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
-                      <p className="text-2xl font-bold text-gray-900">{consumptionPerHour}</p>
-                      <p className="text-xs text-gray-500">L/h</p>
-                    </div>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-gray-500">Score composto</p>
+                <div className="text-center">
+                  <p className="text-5xl font-bold text-primary-600 mb-2">92%</p>
+                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary-600 rounded-full" style={{ width: '92%' }} />
                   </div>
+                  <p className="text-lg font-semibold text-green-600 mt-2">Excelente</p>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 px-2">
-                  <span>6 L/h</span>
-                  <span>Consumo Médio</span>
-                  <span>18 L/h</span>
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Consumo</span>
+                    <span className="font-semibold text-gray-900">92</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Horas Produtivas</span>
+                    <span className="font-semibold text-gray-900">90</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Checklists</span>
+                    <span className="font-semibold text-gray-900">100</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Manutenção</span>
+                    <span className="font-semibold text-gray-900">85</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
