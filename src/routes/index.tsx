@@ -6,6 +6,7 @@ import { Dashboard } from '../pages/Dashboard';
 import { Tratores } from '../pages/Tratores';
 import { Abastecimento } from '../pages/Abastecimento';
 import { Checklists } from '../pages/Checklists';
+import Relatorios from '../pages/Relatorios';
 import { MainLayout } from '../layouts/MainLayout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -73,6 +74,16 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <MainLayout>
                   <Checklists />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/relatorios" 
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Relatorios />
                 </MainLayout>
               </ProtectedRoute>
             } 
