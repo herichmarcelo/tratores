@@ -25,7 +25,6 @@ import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { MainLayout } from '../layouts/MainLayout';
 
 const relatoriosTractors = [
   {
@@ -115,8 +114,7 @@ const Relatorios: React.FC = () => {
   const [dateRange, setDateRange] = useState('01/05/2026 - 18/05/2026');
 
   return (
-    <MainLayout>
-      <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
         <div className="px-4 lg:px-6 pt-4 lg:pt-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -503,7 +501,7 @@ const Relatorios: React.FC = () => {
           </Card>
         </div>
       </div>
-    </MainLayout>
+    </div>
   );
 };
 
