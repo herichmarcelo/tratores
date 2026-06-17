@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', icon: Home, path: '/dashboard', roles: ['admin', 'collaborator'] },
   { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
   { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklist', roles: ['admin', 'collaborator'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
   { label: 'Pneus', icon: Truck, path: '/pneus', roles: ['admin'] },
   { label: 'Manutenção', icon: Wrench, path: '/manutencao', roles: ['admin'] },
   { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['admin'] },
