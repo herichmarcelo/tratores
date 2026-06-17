@@ -11,14 +11,8 @@ import {
   DollarSign,
   Save,
   Gauge,
-  CheckCircle2,
   Home,
-  Menu,
-  X,
-  ChevronDown,
   XCircle,
-  MapPin,
-  Building2,
   Tag,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -353,9 +347,9 @@ export const Abastecimento: React.FC = () => {
                     <span>Fotos do Abastecimento</span>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    {['Comprovante', 'Painel', 'Bico'].map((label, index) => (
+                    {['Comprovante', 'Painel', 'Bico'].map((label) => (
                       <button
-                        key={index}
+                        key={label}
                         className="border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-primary-500 hover:bg-primary-50 transition-colors"
                       >
                         <Camera className="w-8 h-8 text-gray-400 hover:text-primary-600" />
@@ -483,9 +477,9 @@ export const Abastecimento: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 gap-4">
-                    {['Comprovante', 'Painel', 'Bico'].map((label, index) => (
+                    {['Comprovante', 'Painel', 'Bico'].map((label) => (
                       <button
-                        key={index}
+                        key={label}
                         className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 hover:border-primary-500 hover:bg-primary-50 transition-colors"
                       >
                         <Camera className="w-10 h-10 text-gray-400 hover:text-primary-600" />
@@ -613,7 +607,7 @@ export const Abastecimento: React.FC = () => {
             { icon: Fuel, label: 'Abastecimento' },
             { icon: FileText, label: 'Checklists' },
             { icon: User, label: 'Perfil' },
-          ].map((item, index) => (
+          ].map((item) => (
             <button
               key={item.label}
               className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${

@@ -9,9 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
-  ChevronDown,
   Home,
-  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -159,7 +157,6 @@ const getStatusBadge = (status: string) => {
 export const Tratores: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('list');
 
   return (
