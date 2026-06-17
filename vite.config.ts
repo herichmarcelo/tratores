@@ -43,9 +43,11 @@ export default defineConfig({
     }),
   ],
   server: {
+    // @ts-ignore: historyApiFallback is valid for dev server
     historyApiFallback: true,
   },
   preview: {
+    // @ts-ignore: historyApiFallback is valid for preview server
     historyApiFallback: true,
   },
 })
