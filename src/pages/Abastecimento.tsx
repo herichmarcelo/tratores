@@ -14,44 +14,20 @@ import {
   Home,
   XCircle,
   Tag,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-
-// Mock data for refueling history
-const recentRefuels = [
-  {
-    id: '1',
-    date: '18/05/2024',
-    tractor: 'TR-001',
-    liters: 110,
-    consumption: '10,35 L/h',
-  },
-  {
-    id: '2',
-    date: '12/05/2024',
-    tractor: 'TR-001',
-    liters: 115,
-    consumption: '11,08 L/h',
-  },
-  {
-    id: '3',
-    date: '10/05/2024',
-    tractor: 'TR-001',
-    liters: 100,
-    consumption: '9,80 L/h',
-  },
-  {
-    id: '4',
-    date: '08/05/2024',
-    tractor: 'TR-001',
-    liters: 130,
-    consumption: '10,45 L/h',
-  },
-];
+import {
+  useAbastecimentos,
+  useTratores,
+  useUsuarios,
+  useVwEficienciaTratores,
+  useCreateAbastecimento,
+} from '../hooks';
 
 export const Abastecimento: React.FC = () => {
   const [initialHourmeter, setInitialHourmeter] = useState('5800');
@@ -59,12 +35,57 @@ export const Abastecimento: React.FC = () => {
   const [liters, setLiters] = useState('120');
   const [pricePerLiter, setPricePerLiter] = useState('5.89');
   const [activeTab, setActiveTab] = useState('new');
+  const [selectedTractor, setSelectedTractor] = useState('');
+  const [selectedOperator, setSelectedOperator] = useState('');
+  const [selectedFarm, setSelectedFarm] = useState('');
+  const [selectedSector, setSelectedSector] = useState('');
+
+  const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
+  const { data: tratores, isLoading: tratoresLoading } = useTratores();
+  const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
+  const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
+  const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
 
   // Calculated values
   const hoursWorked = parseFloat(finalHourmeter) - parseFloat(initialHourmeter);
   const consumptionPerHour = hoursWorked > 0 ? (parseFloat(liters) / hoursWorked).toFixed(2) : '0';
   const totalValue = (parseFloat(liters) * parseFloat(pricePerLiter)).toFixed(2);
   const costPerHour = hoursWorked > 0 ? (parseFloat(totalValue) / hoursWorked).toFixed(2) : '0';
+
+  // Get average efficiency for sidebar
+  const averageEfficiency = eficienciaTratores?.length > 0
+    ? Math.round(eficienciaTratores.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaTratores.length)
+    : 92;
+
+  // Get recent refuels
+  const recentRefuels = abastecimentos?.slice(0, 4).map((ab) => ({
+    id: ab.id,
+    date: new Date(ab.data_abastecimento).toLocaleDateString('pt-BR'),
+    tractor: ab.trator?.patrimonio || 'Desconhecido',
+    liters: ab.litros_abastecidos || 0,
+    consumption: ab.consumo_medio ? `${ab.consumo_medio} L/h` : '0 L/h',
+  })) || [];
+
+  const handleSave = async () => {
+    if (!selectedTractor) return;
+    try {
+      await createAbastecimento({
+        trator_id: selectedTractor,
+        operador_id: selectedOperator,
+        data_abastecimento: new Date().toISOString(),
+        horimetro_inicial: parseFloat(initialHourmeter),
+        horimetro_final: parseFloat(finalHourmeter),
+        horas_trabalhadas: hoursWorked,
+        litros_abastecidos: parseFloat(liters),
+        valor_litro: parseFloat(pricePerLiter),
+        valor_total: parseFloat(totalValue),
+        consumo_medio: parseFloat(consumptionPerHour),
+        custo_hora: parseFloat(costPerHour),
+      });
+    } catch (err) {
+      console.error('Erro ao salvar abastecimento:', err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,19 +95,6 @@ export const Abastecimento: React.FC = () => {
           <div className="flex items-center gap-3">
             <Fuel className="w-7 h-7 text-primary-600" />
             <h1 className="text-2xl font-bold text-gray-900">Abastecimento</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar no sistema..."
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
@@ -114,10 +122,14 @@ export const Abastecimento: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-xl font-bold text-gray-900">TR-001</h2>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : tratores?.[0]?.patrimonio || 'TR-001'}
+                    </h2>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
-                  <p className="text-gray-600 mb-2">John Deere 6110J</p>
+                  <p className="text-gray-600 mb-2">
+                    {tratoresLoading ? 'Carregando...' : `${tratores?.[0]?.marca} ${tratores?.[0]?.modelo}`}
+                  </p>
                   <Badge className="bg-green-50 text-green-700 border-green-200">Ativo</Badge>
                 </div>
               </div>
@@ -156,37 +168,47 @@ export const Abastecimento: React.FC = () => {
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 uppercase">Data do Abastecimento</label>
                       <div className="relative">
-                        <Input type="date" defaultValue="2024-05-18" className="border-gray-200" />
+                        <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="border-gray-200" />
                         <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 uppercase">Trator</label>
-                      <Select className="border-gray-200">
-                        <option>TR-001 - John Deere 6110J</option>
-                        <option>TR-002 - Massey Ferguson 4292</option>
-                      </Select>
+                      {tratoresLoading ? (
+                        <div className="h-10 bg-gray-100 border border-gray-200 rounded-lg animate-pulse" />
+                      ) : (
+                        <Select className="border-gray-200" value={selectedTractor} onChange={(e) => setSelectedTractor(e.target.value)}>
+                          {tratores?.map((t) => (
+                            <option key={t.id} value={t.id}>{t.patrimonio} - {t.marca} {t.modelo}</option>
+                          ))}
+                        </Select>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 uppercase">Operador</label>
-                      <Select className="border-gray-200">
-                        <option>João da Silva</option>
-                        <option>Maria Santos</option>
-                      </Select>
+                      {usuariosLoading ? (
+                        <div className="h-10 bg-gray-100 border border-gray-200 rounded-lg animate-pulse" />
+                      ) : (
+                        <Select className="border-gray-200" value={selectedOperator} onChange={(e) => setSelectedOperator(e.target.value)}>
+                          {usuarios?.map((u) => (
+                            <option key={u.id} value={u.id}>{u.nome}</option>
+                          ))}
+                        </Select>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 uppercase">Fazenda / Unidade</label>
-                      <Select className="border-gray-200">
+                      <Select className="border-gray-200" value={selectedFarm} onChange={(e) => setSelectedFarm(e.target.value)}>
                         <option>Matriz</option>
                         <option>Fazenda Santa Luzia</option>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 uppercase">Setor</label>
-                      <Select className="border-gray-200">
+                      <Select className="border-gray-200" value={selectedSector} onChange={(e) => setSelectedSector(e.target.value)}>
                         <option>Lavouras Norte</option>
                         <option>Lavouras Sul</option>
                       </Select>
@@ -212,17 +234,22 @@ export const Abastecimento: React.FC = () => {
                         <User className="w-5 h-5" />
                         <span>Operador</span>
                       </div>
-                      <Select className="border-gray-200">
-                        <option>João da Silva</option>
-                        <option>Maria Santos</option>
-                      </Select>
+                      {usuariosLoading ? (
+                        <div className="h-10 bg-gray-100 border border-gray-200 rounded-lg animate-pulse" />
+                      ) : (
+                        <Select className="border-gray-200" value={selectedOperator} onChange={(e) => setSelectedOperator(e.target.value)}>
+                          {usuarios?.map((u) => (
+                            <option key={u.id} value={u.id}>{u.nome}</option>
+                          ))}
+                        </Select>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-gray-600 text-sm font-semibold uppercase">
                         <Calendar className="w-5 h-5" />
                         <span>Data</span>
                       </div>
-                      <Input type="date" defaultValue="2024-05-18" className="border-gray-200" />
+                      <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="border-gray-200" />
                     </div>
                   </div>
                 </CardContent>
@@ -498,8 +525,12 @@ export const Abastecimento: React.FC = () => {
                   <XCircle className="w-4 h-4" />
                   <span>Cancelar</span>
                 </Button>
-                <Button className="bg-primary-600 hover:bg-primary-700 gap-1">
-                  <Save className="w-4 h-4" />
+                <Button
+                  onClick={handleSave}
+                  disabled={isCreating}
+                  className="bg-primary-600 hover:bg-primary-700 gap-1"
+                >
+                  {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   <span>Salvar Abastecimento</span>
                 </Button>
               </div>
@@ -538,13 +569,21 @@ export const Abastecimento: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-xs text-gray-500">Score composto</p>
-                <div className="text-center">
-                  <p className="text-5xl font-bold text-primary-600 mb-2">92%</p>
-                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary-600 rounded-full" style={{ width: '92%' }} />
+                {eficienciaLoading ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="w-8 h-8 text-primary-600 animate-spin mx-auto" />
                   </div>
-                  <p className="text-lg font-semibold text-green-600 mt-2">Excelente</p>
-                </div>
+                ) : (
+                  <div className="text-center">
+                    <p className="text-5xl font-bold text-primary-600 mb-2">{averageEfficiency}%</p>
+                    <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary-600 rounded-full" style={{ width: `${averageEfficiency}%` }} />
+                    </div>
+                    <p className="text-lg font-semibold text-green-600 mt-2">
+                      {averageEfficiency >= 90 ? 'Excelente' : averageEfficiency >= 75 ? 'Atenção' : 'Baixa'}
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-2 pt-2 border-t border-gray-100">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" />Consumo</span>
@@ -574,18 +613,26 @@ export const Abastecimento: React.FC = () => {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-2">
-                {recentRefuels.map((refuel) => (
-                  <div key={refuel.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="text-sm text-gray-900 font-medium">{refuel.date}</p>
-                      <p className="text-xs text-gray-500">{refuel.tractor}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-900 font-medium">{refuel.liters} L</p>
-                      <Badge className="bg-green-50 text-green-700 border-green-200 text-[10px]">{refuel.consumption}</Badge>
-                    </div>
+                {abastecimentosLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
                   </div>
-                ))}
+                ) : recentRefuels.length > 0 ? (
+                  recentRefuels.map((refuel) => (
+                    <div key={refuel.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="text-sm text-gray-900 font-medium">{refuel.date}</p>
+                        <p className="text-xs text-gray-500">{refuel.tractor}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-900 font-medium">{refuel.liters} L</p>
+                        <Badge className="bg-green-50 text-green-700 border-green-200 text-[10px]">{refuel.consumption}</Badge>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 py-2">Nenhum abastecimento registrado</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -594,31 +641,14 @@ export const Abastecimento: React.FC = () => {
 
       {/* Bottom navigation (mobile only) */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-1 z-40">
-        <Button className="w-full h-14 text-lg font-semibold bg-primary-600 hover:bg-primary-700 flex items-center justify-center gap-2">
-          <Save className="w-5 h-5" />
+        <Button
+          onClick={handleSave}
+          disabled={isCreating}
+          className="w-full h-14 text-lg font-semibold bg-primary-600 hover:bg-primary-700 flex items-center justify-center gap-2"
+        >
+          {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
           Salvar Abastecimento
         </Button>
-      </div>
-      <div className="lg:hidden fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 px-2 py-1 z-30">
-        <div className="flex justify-around">
-          {[
-            { icon: Home, label: 'Dashboard' },
-            { icon: Tractor, label: 'Tratores' },
-            { icon: Fuel, label: 'Abastecimento' },
-            { icon: FileText, label: 'Checklists' },
-            { icon: User, label: 'Perfil' },
-          ].map((item) => (
-            <button
-              key={item.label}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-colors ${
-                item.label === 'Abastecimento' ? 'bg-primary-100 text-primary-700' : 'text-gray-500'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="text-[10px] mt-1">{item.label}</span>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
