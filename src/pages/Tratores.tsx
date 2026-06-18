@@ -188,13 +188,13 @@ export const Tratores: React.FC = () => {
                     key={trator.id}
                     className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
-                      <img
-                        src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                        alt={trator.modelo}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-1">
+                  <img
+                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=200&h=200&fit=crop"
+                    alt={trator.modelo}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-bold text-gray-900">{trator.patrimonio}</h3>

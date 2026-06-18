@@ -113,11 +113,11 @@ export const Abastecimento: React.FC = () => {
           <Card className="border-none shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-2">
                   <img
-                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
+                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=200&h=200&fit=crop"
                     alt="Trator"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 </div>
                 <div className="flex-1">
