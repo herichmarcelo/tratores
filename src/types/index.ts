@@ -1,101 +1,161 @@
-export type UserRole = 'admin' | 'collaborator';
+export type UserProfile = 'administrador' | 'colaborador' | 'gestor';
 
 export interface User {
   id: string;
-  name: string;
+  nome: string;
   email: string;
-  role: UserRole;
-  avatar?: string;
+  cargo?: string;
+  perfil: UserProfile;
+  ativo: boolean;
+  created_at: Date;
+  updated_at?: Date;
+}
+
+export interface Fazenda {
+  id: string;
+  nome: string;
+  cidade?: string;
+  estado?: string;
+  ativo: boolean;
+  created_at: Date;
+  updated_at?: Date;
 }
 
 export interface Tractor {
   id: string;
-  patrimony: string;
-  brand: string;
-  model: string;
-  year: number;
-  power: number;
-  hourmeter: number;
-  tankCapacity: number;
-  serialNumber: string;
-  chassis: string;
-  farm: string;
-  sector: string;
-  status: 'active' | 'maintenance' | 'inactive';
-  photos?: string[];
-  observations?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  patrimonio: string;
+  marca?: string;
+  modelo?: string;
+  ano?: number;
+  numero_serie?: string;
+  potencia_cv?: number;
+  capacidade_tanque?: number;
+  horimetro_atual?: number;
+  status: string;
+  fazenda_id?: string;
+  setor?: string;
+  observacoes?: string;
+  created_at: Date;
+  updated_at?: Date;
+  fazenda?: Fazenda;
 }
 
-export interface Tire {
+export interface Abastecimento {
   id: string;
-  tractorId: string;
-  position: 'frontLeft' | 'frontRight' | 'rearLeft' | 'rearRight';
-  brand: string;
-  model: string;
-  size: string;
-  recommendedPressure: number;
-  currentPressure: number;
-  lifespan: number;
-  installationDate: Date;
-  status: 'good' | 'warning' | 'critical';
-}
-
-export interface Refuel {
-  id: string;
-  date: Date;
-  tractorId: string;
-  operatorId: string;
-  initialHourmeter: number;
-  finalHourmeter: number;
-  liters: number;
-  dieselPrice: number;
-  observation?: string;
-  createdAt: Date;
-}
-
-export interface ChecklistItem {
-  id: string;
-  name: string;
-  status: 'ok' | 'warning' | 'nok';
-  notes?: string;
+  trator_id: string;
+  operador_id?: string;
+  data_abastecimento: Date;
+  horimetro_inicial?: number;
+  horimetro_final?: number;
+  horas_trabalhadas?: number;
+  litros_abastecidos: number;
+  valor_litro?: number;
+  valor_total?: number;
+  consumo_medio?: number;
+  custo_hora?: number;
+  observacoes?: string;
+  created_at: Date;
+  trator?: Tractor;
+  operador?: User;
 }
 
 export interface Checklist {
   id: string;
-  date: Date;
-  tractorId: string;
-  operatorId: string;
-  items: ChecklistItem[];
-  result: 'approved' | 'approved_with_reservations' | 'rejected';
-  observations?: string;
-  photos?: string[];
-  signature?: string;
-  createdAt: Date;
+  trator_id: string;
+  operador_id?: string;
+  data_checklist: Date;
+  score?: number;
+  status: string;
+  observacoes?: string;
+  assinatura?: string;
+  created_at: Date;
+  trator?: Tractor;
+  operador?: User;
 }
 
-export interface Maintenance {
+export interface ChecklistItem {
   id: string;
-  date: Date;
-  type: 'preventive' | 'corrective' | 'oil_change' | 'filter_change' | 'lubrication' | 'general_review';
-  tractorId: string;
-  responsibleId: string;
-  description: string;
-  parts?: string[];
-  value: number;
-  nextReview?: Date;
-  status: 'scheduled' | 'in_progress' | 'completed';
-  createdAt: Date;
+  checklist_id: string;
+  item: string;
+  resultado?: 'conforme' | 'atencao' | 'reprovado';
+  observacao?: string;
+  created_at: Date;
 }
 
-export interface DashboardStats {
-  activeTractors: number;
-  todayConsumption: number;
-  tiresWithAlert: number;
-  inMaintenance: number;
-  pendingChecklists: number;
-  monthlyDieselCost: number;
-  fleetEfficiency: number;
-  activeOperators: number;
+export interface Pneu {
+  id: string;
+  trator_id: string;
+  posicao?: string;
+  marca?: string;
+  modelo?: string;
+  medida?: string;
+  pressao_recomendada?: number;
+  pressao_atual?: number;
+  vida_util?: number;
+  status?: string;
+  created_at: Date;
+  trator?: Tractor;
+}
+
+export interface Manutencao {
+  id: string;
+  trator_id: string;
+  tipo: string;
+  descricao?: string;
+  data_manutencao: Date;
+  valor?: number;
+  responsavel?: string;
+  status?: string;
+  proxima_revisao?: Date;
+  created_at: Date;
+  trator?: Tractor;
+}
+
+// Views
+export interface VwConsumoFrota {
+  patrimonio: string;
+  marca?: string;
+  modelo?: string;
+  fazenda?: string;
+  total_litros?: number;
+  total_custo?: number;
+  consumo_medio?: number;
+}
+
+export interface VwEficienciaTratores {
+  trator_id: string;
+  patrimonio: string;
+  marca?: string;
+  modelo?: string;
+  eficiencia_percentual?: number;
+}
+
+export interface VwCustosFrota {
+  patrimonio: string;
+  fazenda?: string;
+  custo_abastecimento?: number;
+  custo_manutencao?: number;
+  custo_total?: number;
+}
+
+export interface VwChecklistsPendentes {
+  id: string;
+  patrimonio: string;
+  marca?: string;
+  modelo?: string;
+  operador?: string;
+  data_checklist: Date;
+  status: string;
+}
+
+export interface VwManutencoesAbertas {
+  id: string;
+  patrimonio: string;
+  marca?: string;
+  modelo?: string;
+  tipo: string;
+  descricao?: string;
+  data_manutencao: Date;
+  status?: string;
+  proxima_revisao?: Date;
 }
