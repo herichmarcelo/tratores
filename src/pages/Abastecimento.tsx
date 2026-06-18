@@ -7,7 +7,6 @@ import {
   Camera,
   FileText,
   ChevronRight,
-  Tractor,
   DollarSign,
   Save,
   Gauge,
@@ -56,8 +55,9 @@ export const Abastecimento: React.FC = () => {
   const costPerHour = hoursWorked > 0 ? (parseFloat(totalValue) / hoursWorked).toFixed(2) : '0';
 
   // Get average efficiency for sidebar
-  const averageEfficiency = eficienciaTratores?.length > 0
-    ? Math.round(eficienciaTratores.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaTratores.length)
+  const eficienciaList = eficienciaTratores ?? [];
+  const averageEfficiency = eficienciaList.length > 0
+    ? Math.round(eficienciaList.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaList.length)
     : 92;
 
   // Get recent refuels
@@ -75,7 +75,7 @@ export const Abastecimento: React.FC = () => {
       await createAbastecimento({
         trator_id: selectedTractor,
         operador_id: selectedOperator,
-        data_abastecimento: new Date().toISOString(),
+        data_abastecimento: new Date(),
         horimetro_inicial: parseFloat(initialHourmeter),
         horimetro_final: parseFloat(finalHourmeter),
         horas_trabalhadas: hoursWorked,

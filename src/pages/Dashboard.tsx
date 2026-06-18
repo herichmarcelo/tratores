@@ -22,7 +22,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { useTratores, useAbastecimentos, usePneus, useManutencoes, useChecklists, useVwEficienciaTratores, useVwConsumoFrota } from '../hooks';
+import { useTratores, useAbastecimentos, usePneus, useManutencoes, useChecklists, useVwEficienciaTratores } from '../hooks';
 
 const DashboardCard = ({
   title,
@@ -61,7 +61,6 @@ export const Dashboard: React.FC = () => {
   const { data: manutencoes, isLoading: manutencoesLoading } = useManutencoes();
   const { data: checklists, isLoading: checklistsLoading } = useChecklists();
   const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
-  const { data: consumoFrota, isLoading: consumoLoading } = useVwConsumoFrota();
 
   // Calculate stats
   const tratoresAtivos = tratores?.filter(t => t.status === 'ativo').length || 0;
@@ -70,10 +69,15 @@ export const Dashboard: React.FC = () => {
   const emManutencao = manutencoes?.filter(m => m.status === 'pendente' || m.status === 'em_andamento').length || 0;
   const checklistsPendentes = checklists?.filter(c => c.status === 'pendente').length || 0;
   const custoTotal = abastecimentos?.reduce((acc, a) => acc + (a.valor_total || 0), 0) || 0;
-  const melhorTrator = eficienciaTratores?.sort((a, b) => (b.eficiencia_percentual || 0) - (a.eficiencia_percentual || 0))[0];
-  const piorTrator = eficienciaTratores?.sort((a, b) => (a.eficiencia_percentual || 100) - (b.eficiencia_percentual || 100))[0];
-  const eficienciaMedia = eficienciaTratores?.length > 0
-    ? Math.round(eficienciaTratores.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaTratores.length)
+  const eficienciaList = eficienciaTratores ?? [];
+  const melhorTrator = eficienciaList.length > 0
+    ? [...eficienciaList].sort((a, b) => (b.eficiencia_percentual || 0) - (a.eficiencia_percentual || 0))[0]
+    : undefined;
+  const piorTrator = eficienciaList.length > 0
+    ? [...eficienciaList].sort((a, b) => (a.eficiencia_percentual || 100) - (b.eficiencia_percentual || 100))[0]
+    : undefined;
+  const eficienciaMedia = eficienciaList.length > 0
+    ? Math.round(eficienciaList.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaList.length)
     : 0;
 
   // Mock chart data for now (can use real data later)
