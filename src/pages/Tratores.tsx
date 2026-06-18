@@ -21,10 +21,12 @@ import { useTratores, useVwEficienciaTratores } from '../hooks';
 
 const getStatusColor = (status: string) => {
   const lower = status.toLowerCase();
-  if (lower.includes('ativo') || lower.includes('active') || lower.includes('ok'))
+  if (lower.includes('ativo') || lower.includes('active') || lower.includes('ok')) {
     return 'bg-green-100 text-green-700 border-green-200';
-  if (lower.includes('manutenção') || lower.includes('manutenção') || lower.includes('pendente') || lower.includes('inativo'))
+  }
+  if (lower.includes('manutenção') || lower.includes('pendente') || lower.includes('inativo')) {
     return 'bg-amber-100 text-amber-700 border-amber-200';
+  }
   return 'bg-gray-100 text-gray-700 border-gray-200';
 };
 
@@ -128,25 +130,33 @@ export const Tratores: React.FC = () => {
         <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setActiveTab('todos')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'todos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'todos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
             Todos
           </button>
           <button
             onClick={() => setActiveTab('ativos')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'ativos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'ativos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
             Ativos
           </button>
           <button
             onClick={() => setActiveTab('manutencao')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'manutencao' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'manutencao' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
             Manutenção
           </button>
           <button
             onClick={() => setActiveTab('inativos')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'inativos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'inativos' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
             Inativos
           </button>
@@ -184,64 +194,65 @@ export const Tratores: React.FC = () => {
               ) : (
                 <div className="divide-y divide-gray-100">
                   {tratoresFiltrados.map((trator) => (
-                  <div
-                    key={trator.id}
-                    className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-1">
-                  <img
-                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=200&h=200&fit=crop"
-                    alt={trator.modelo}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-gray-900">{trator.patrimonio}</h3>
-                        <Badge className={getStatusColor(trator.status)}>
-                          {trator.status}
-                        </Badge>
+                    <div
+                      key={trator.id}
+                      className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-1">
+                        <img
+                          src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=200&h=200&fit=crop"
+                          alt={trator.modelo}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
-                      <p className="text-sm text-gray-600">{trator.marca} {trator.modelo} {trator.ano}</p>
-                      <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Gauge className="w-3 h-3" />
-                          {trator.horimetro_atual} h
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-gray-900">{trator.patrimonio}</h3>
+                          <Badge className={getStatusColor(trator.status)}>
+                            {trator.status}
+                          </Badge>
                         </div>
-                        {trator.setor && (
+                        <p className="text-sm text-gray-600">{trator.marca} {trator.modelo} {trator.ano}</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
                           <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {trator.setor}
+                            <Gauge className="w-3 h-3" />
+                            {trator.horimetro_atual} h
                           </div>
-                        )}
+                          {trator.setor && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {trator.setor}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
+                          <div
+                            className="h-full bg-green-500"
+                            style={{ width: `${getEficienciaForTrator(trator.id)}%` }}
+                          ></div>
+                        </div>
+                        <span className={`text-sm font-bold ${getFuelIconColor(getEficienciaForTrator(trator.id))}`}>
+                          {getEficienciaForTrator(trator.id)}%
+                        </span>
+                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-gray-500">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
-                        <div
-                          className="h-full bg-green-500"
-                          style={{ width: `${getEficienciaForTrator(trator.id)}%` }}
-                        ></div>
-                      </div>
-                      <span className={`text-sm font-bold ${getFuelIconColor(getEficienciaForTrator(trator.id))}`}>
-                        {getEficienciaForTrator(trator.id)}%
-                      </span>
-                      <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-gray-500 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-gray-500">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </CardContent>
