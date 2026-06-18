@@ -9,17 +9,18 @@ import {
   Wrench,
   FileText,
   Settings,
-  User,
   LogOut,
   Menu,
   X,
   Home,
-  Users,
   Search,
   Bell,
   Leaf,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { UserAvatar } from '../components/UserAvatar';
+import { useUpdateUsuario } from '../hooks';
+import { uploadToCloudinary } from '../services/cloudinary';
 
 interface NavItem {
   label: string;
@@ -32,24 +33,46 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', icon: Home, path: '/dashboard', roles: ['admin', 'collaborator'] },
   { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
   { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin'] },
   { label: 'Pneus', icon: Truck, path: '/pneus', roles: ['admin'] },
   { label: 'Manutenção', icon: Wrench, path: '/manutencao', roles: ['admin'] },
   { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['admin'] },
-  { label: 'Usuários', icon: Users, path: '/usuarios', roles: ['admin'] },
   { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['admin'] },
 ];
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const { mutateAsync: updateUsuario } = useUpdateUsuario();
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!user) return;
+    try {
+      setUploadingPhoto(true);
+      const foto_url = await uploadToCloudinary(file, 'usuarios');
+
+      let usuarioId = user.id;
+
+      await updateUsuario({ id: usuarioId, foto_url });
+
+      updateUser({ foto_url });
+    } catch (err) {
+      console.error('Erro ao atualizar foto:', err);
+      alert('Não foi possível atualizar a foto. Tente novamente.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const roleLabel = user?.role === 'admin' ? 'Administrador' : 'Operador';
 
   const filteredNavItems = navItems.filter(item => 
     user ? item.roles.includes(user.role) : false
@@ -94,7 +117,8 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
         <nav className="p-4 space-y-1">
           {filteredNavItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path
+              || (item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes'));
             return (
               <Link
                 key={item.path}
@@ -119,14 +143,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-primary-700">
           <div className="mb-4 p-3 bg-primary-700/50 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
+              <UserAvatar
+                src={user?.foto_url}
+                nome={user?.nome || 'Usuário'}
+                size="sm"
+                editable
+                onUpload={handlePhotoUpload}
+                isUploading={uploadingPhoto}
+              />
               <div>
-                <p className="font-medium text-white">{user?.name}</p>
-                <p className="text-xs text-green-200">
-                  {user?.role === 'admin' ? 'Administrador' : 'Operador'}
-                </p>
+                <p className="font-medium text-white">{user?.nome}</p>
+                <p className="text-xs text-green-200">{roleLabel}</p>
               </div>
             </div>
           </div>
@@ -164,12 +191,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </Button>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-cyan-400 flex items-center justify-center text-white font-bold">
-                HM
-              </div>
+              <UserAvatar
+                src={user?.foto_url}
+                nome={user?.nome || 'Usuário'}
+                size="md"
+                editable
+                onUpload={handlePhotoUpload}
+                isUploading={uploadingPhoto}
+              />
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                <p className="text-xs text-gray-500">Administrador</p>
+                <p className="text-sm font-semibold text-gray-900">{user?.nome}</p>
+                <p className="text-xs text-gray-500">{roleLabel}</p>
               </div>
             </div>
           </div>

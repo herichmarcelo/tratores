@@ -11,6 +11,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS fazendas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nome VARCHAR(255) NOT NULL,
+    razao_social VARCHAR(255),
+    inscricao_estadual VARCHAR(50),
+    cpf_proprietario VARCHAR(14),
+    endereco TEXT,
     cidade VARCHAR(255),
     estado VARCHAR(100),
     ativo BOOLEAN DEFAULT TRUE,
@@ -27,6 +31,20 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(255) UNIQUE NOT NULL,
     cargo VARCHAR(100),
     perfil VARCHAR(50) NOT NULL CHECK (perfil IN ('administrador', 'colaborador', 'gestor')),
+    foto_url TEXT,
+    senha_hash TEXT,
+    ativo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ==============================================
+-- TABELA: SETORES
+-- ==============================================
+CREATE TABLE IF NOT EXISTS setores (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(255) NOT NULL,
+    fazenda_id UUID REFERENCES fazendas(id) ON DELETE SET NULL,
     ativo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -49,6 +67,7 @@ CREATE TABLE IF NOT EXISTS tratores (
     fazenda_id UUID REFERENCES fazendas(id) ON DELETE SET NULL,
     setor VARCHAR(255),
     observacoes TEXT,
+    imagem_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -231,6 +250,9 @@ CREATE TRIGGER update_fazendas_updated_at BEFORE UPDATE ON fazendas
 CREATE TRIGGER update_usuarios_updated_at BEFORE UPDATE ON usuarios
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_setores_updated_at BEFORE UPDATE ON setores
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_tratores_updated_at BEFORE UPDATE ON tratores
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -239,6 +261,7 @@ CREATE TRIGGER update_tratores_updated_at BEFORE UPDATE ON tratores
 -- ==============================================
 ALTER TABLE fazendas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE setores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tratores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE abastecimentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklists ENABLE ROW LEVEL SECURITY;
@@ -248,6 +271,12 @@ ALTER TABLE manutencoes ENABLE ROW LEVEL SECURITY;
 
 -- Política: Administradores podem acessar tudo
 CREATE POLICY "Administradores podem acessar tudo" ON fazendas
+    FOR ALL USING (true);
+
+CREATE POLICY "Permitir acesso aos usuarios" ON usuarios
+    FOR ALL USING (true);
+
+CREATE POLICY "Permitir acesso aos setores" ON setores
     FOR ALL USING (true);
 
 -- (Você pode adicionar políticas mais restritivas posteriormente)

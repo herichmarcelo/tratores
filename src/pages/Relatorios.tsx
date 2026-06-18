@@ -21,6 +21,8 @@ import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { TractorImage } from '../components/TractorImage';
+import { useTratores } from '../hooks';
 
 const relatoriosTractors = [
   {
@@ -106,6 +108,10 @@ const relatoriosTractors = [
 ];
 
 const Relatorios: React.FC = () => {
+  const { data: tratores } = useTratores();
+
+  const getTratorImage = (patrimony: string) =>
+    tratores?.find((t) => t.patrimonio === patrimony)?.imagem_url;
 
   return (
     <div className="min-h-screen bg-background">
@@ -425,13 +431,11 @@ const Relatorios: React.FC = () => {
                     <tr key={tractor.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 lg:px-6 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
-                            <img
-                              src={tractor.image}
-                              alt={tractor.model}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+                          <TractorImage
+                            src={getTratorImage(tractor.patrimony) || tractor.image}
+                            alt={tractor.model}
+                            size="sm"
+                          />
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{tractor.patrimony} - {tractor.brand} {tractor.model}</p>
                           </div>

@@ -7,12 +7,24 @@ import { Tratores } from '../pages/Tratores';
 import { Abastecimento } from '../pages/Abastecimento';
 import { Checklists } from '../pages/Checklists';
 import Relatorios from '../pages/Relatorios';
+import { Configuracoes } from '../pages/Configuracoes';
 import { MainLayout } from '../layouts/MainLayout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 };
@@ -25,72 +37,77 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+const withLayout = (page: React.ReactNode) => (
+  <MainLayout>{page}</MainLayout>
+);
+
 const AppRoutes: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
               <PublicRoute>
                 <Login />
               </PublicRoute>
-            } 
+            }
           />
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
-                <MainLayout>
-                  <Dashboard />
-                </MainLayout>
+                {withLayout(<Dashboard />)}
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/tratores" 
+          <Route
+            path="/abastecimento"
             element={
               <ProtectedRoute>
-                <MainLayout>
-                  <Tratores />
-                </MainLayout>
+                {withLayout(<Abastecimento />)}
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/abastecimento" 
+          <Route
+            path="/tratores"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Abastecimento />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
+              <AdminRoute>
+                {withLayout(<Tratores />)}
+              </AdminRoute>
+            }
           />
-          <Route 
-            path="/checklists" 
+          <Route
+            path="/checklists"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Checklists />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
+              <AdminRoute>
+                {withLayout(<Checklists />)}
+              </AdminRoute>
+            }
           />
-          <Route 
-            path="/relatorios" 
+          <Route
+            path="/relatorios"
             element={
-              <ProtectedRoute>
-                <MainLayout>
-                  <Relatorios />
-                </MainLayout>
-              </ProtectedRoute>
-            } 
+              <AdminRoute>
+                {withLayout(<Relatorios />)}
+              </AdminRoute>
+            }
           />
-          <Route 
-            path="*" 
-            element={<Navigate to="/" replace />} 
+          <Route
+            path="/configuracoes"
+            element={
+              <AdminRoute>
+                {withLayout(<Configuracoes />)}
+              </AdminRoute>
+            }
+          />
+          <Route path="/usuarios" element={<Navigate to="/configuracoes" replace />} />
+          <Route path="/pneus" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/manutencao" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
           />
         </Routes>
       </Router>

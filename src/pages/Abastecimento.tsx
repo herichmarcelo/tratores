@@ -28,6 +28,7 @@ import {
   useVwEficienciaTratores,
   useCreateAbastecimento,
 } from '../hooks';
+import { TractorImage } from '../components/TractorImage';
 
 export const Abastecimento: React.FC = () => {
   const [initialHourmeter, setInitialHourmeter] = useState('5800');
@@ -45,6 +46,8 @@ export const Abastecimento: React.FC = () => {
   const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
   const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
   const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
+
+  const currentTrator = tratores?.find((t) => t.id === selectedTractor) || tratores?.[0];
 
   // Calculated values
   const hoursWorked = parseFloat(finalHourmeter) - parseFloat(initialHourmeter);
@@ -113,24 +116,24 @@ export const Abastecimento: React.FC = () => {
           <Card className="border-none shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-2">
-                  <img
-                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=200&h=200&fit=crop"
-                    alt="Trator"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+                <TractorImage
+                  src={currentTrator?.imagem_url}
+                  alt={currentTrator?.modelo || 'Trator'}
+                  size="lg"
+                />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <h2 className="text-xl font-bold text-gray-900">
-                      {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : tratores?.[0]?.patrimonio || 'TR-001'}
+                      {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : currentTrator?.patrimonio || 'TR-001'}
                     </h2>
                     <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
                   <p className="text-gray-600 mb-2">
-                    {tratoresLoading ? 'Carregando...' : `${tratores?.[0]?.marca} ${tratores?.[0]?.modelo}`}
+                    {tratoresLoading ? 'Carregando...' : `${currentTrator?.marca || ''} ${currentTrator?.modelo || ''}`}
                   </p>
-                  <Badge className="bg-green-50 text-green-700 border-green-200">Ativo</Badge>
+                  <Badge className="bg-green-50 text-green-700 border-green-200">
+                    {currentTrator?.status || 'Ativo'}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
@@ -177,7 +180,11 @@ export const Abastecimento: React.FC = () => {
                       {tratoresLoading ? (
                         <div className="h-10 bg-gray-100 border border-gray-200 rounded-lg animate-pulse" />
                       ) : (
-                        <Select className="border-gray-200" value={selectedTractor} onChange={(e) => setSelectedTractor(e.target.value)}>
+                        <Select
+                          className="border-gray-200"
+                          value={selectedTractor || tratores?.[0]?.id || ''}
+                          onChange={(e) => setSelectedTractor(e.target.value)}
+                        >
                           {tratores?.map((t) => (
                             <option key={t.id} value={t.id}>{t.patrimonio} - {t.marca} {t.modelo}</option>
                           ))}

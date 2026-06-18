@@ -81,8 +81,8 @@ export const Login: React.FC = () => {
           </CardFooter>
         </form>
         <div className="px-6 pb-6 text-center text-xs text-gray-500">
-          <p>Demo: admin@plumaagro.com / qualquer senha</p>
-          <p>Operador: operador@plumaagro.com / qualquer senha</p>
+          <p>Acesse com o e-mail e senha cadastrados em Configurações.</p>
+          <p className="mt-1">Colaboradores: apenas Dashboard e Abastecimentos.</p>
         </div>
       </Card>
     </div>

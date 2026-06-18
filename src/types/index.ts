@@ -6,6 +6,7 @@ export interface User {
   email: string;
   cargo?: string;
   perfil: UserProfile;
+  foto_url?: string;
   ativo: boolean;
   created_at: Date;
   updated_at?: Date;
@@ -14,11 +15,25 @@ export interface User {
 export interface Fazenda {
   id: string;
   nome: string;
+  razao_social?: string;
+  inscricao_estadual?: string;
+  cpf_proprietario?: string;
+  endereco?: string;
   cidade?: string;
   estado?: string;
   ativo: boolean;
   created_at: Date;
   updated_at?: Date;
+}
+
+export interface Setor {
+  id: string;
+  nome: string;
+  fazenda_id?: string;
+  ativo: boolean;
+  created_at: Date;
+  updated_at?: Date;
+  fazenda?: Fazenda;
 }
 
 export interface Tractor {
@@ -35,6 +50,7 @@ export interface Tractor {
   fazenda_id?: string;
   setor?: string;
   observacoes?: string;
+  imagem_url?: string;
   created_at: Date;
   updated_at?: Date;
   fazenda?: Fazenda;

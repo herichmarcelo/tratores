@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
-import type { Tractor, Abastecimento, Checklist, Manutencao, Pneu, Fazenda, User, VwEficienciaTratores, VwConsumoFrota, VwCustosFrota, VwChecklistsPendentes, VwManutencoesAbertas } from '../types'
+import { hashPassword } from '../utils/password'
+import type { Tractor, Abastecimento, Checklist, Manutencao, Pneu, Fazenda, Setor, User, VwEficienciaTratores, VwConsumoFrota, VwCustosFrota, VwChecklistsPendentes, VwManutencoesAbertas } from '../types'
 
 // Tratores
 export const useTratores = () => {
@@ -115,10 +116,100 @@ export const useUsuarios = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('*')
+        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
         .order('nome')
       if (error) throw error
       return data as User[]
+    },
+  })
+}
+
+// Setores
+export const useSetores = () => {
+  return useQuery({
+    queryKey: ['setores'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('setores')
+        .select('*, fazenda:fazendas(*)')
+        .order('nome')
+      if (error) throw error
+      return data as Setor[]
+    },
+  })
+}
+
+export const useCreateUsuario = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: Omit<User, 'id' | 'created_at' | 'updated_at'> & { senha: string }) => {
+      const { senha, ...usuario } = input
+      const senha_hash = await hashPassword(senha)
+      const { data, error } = await supabase
+        .from('usuarios')
+        .insert({ ...usuario, senha_hash, email: usuario.email.trim().toLowerCase() })
+        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
+        .single()
+      if (error) throw error
+      return data as User
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+    },
+  })
+}
+
+export const useUpdateUsuario = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<User> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data as User
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+    },
+  })
+}
+
+export const useCreateFazenda = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (fazenda: Omit<Fazenda, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('fazendas')
+        .insert(fazenda)
+        .select()
+        .single()
+      if (error) throw error
+      return data as Fazenda
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fazendas'] })
+    },
+  })
+}
+
+export const useCreateSetor = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (setor: Omit<Setor, 'id' | 'created_at' | 'updated_at' | 'fazenda'>) => {
+      const { data, error } = await supabase
+        .from('setores')
+        .insert(setor)
+        .select('*, fazenda:fazendas(*)')
+        .single()
+      if (error) throw error
+      return data as Setor
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setores'] })
     },
   })
 }
@@ -185,6 +276,25 @@ export const useVwManutencoesAbertas = () => {
         .select('*')
       if (error) throw error
       return data as VwManutencoesAbertas[]
+    },
+  })
+}
+
+export const useCreateTrator = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (trator: Omit<Tractor, 'id' | 'created_at' | 'updated_at' | 'fazenda'>) => {
+      const { data, error } = await supabase
+        .from('tratores')
+        .insert(trator)
+        .select('*, fazenda:fazendas(*)')
+        .single()
+      if (error) throw error
+      return data as Tractor
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tratores'] })
+      queryClient.invalidateQueries({ queryKey: ['vw_eficiencia_tratores'] })
     },
   })
 }
