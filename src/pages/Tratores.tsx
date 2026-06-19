@@ -1,25 +1,27 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Plus,
   MoreHorizontal,
   Edit,
-  Trash2,
   Eye,
   Filter,
   Tractor,
   Calendar,
-  Clock,
   Gauge,
   Loader2,
   X,
+  Fuel,
+  Zap,
+  MapPin,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { useTratores, useVwEficienciaTratores, useCreateTrator, useFazendas, useSetores } from '../hooks';
+import { useTratores, useCreateTrator, useFazendas, useSetores, useAbastecimentos } from '../hooks';
 import { TractorImage } from '../components/TractorImage';
 import { ImageUpload } from '../components/ImageUpload';
 import { uploadToCloudinary } from '../services/cloudinary';
@@ -35,11 +37,6 @@ const getStatusColor = (status: string) => {
   return 'bg-gray-100 text-gray-700 border-gray-200';
 };
 
-const getFuelIconColor = (eficiencia: number | null | undefined) => {
-  if (!eficiencia) return 'text-gray-500';
-  return eficiencia >= 90 ? 'text-green-500' : eficiencia >= 75 ? 'text-amber-500' : 'text-red-500';
-};
-
 const initialFormState = {
   patrimonio: '',
   marca: '',
@@ -52,6 +49,7 @@ const initialFormState = {
 };
 
 export const Tratores: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('todos');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,7 +59,7 @@ export const Tratores: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
-  const { data: eficienciaTratores } = useVwEficienciaTratores();
+  const { data: abastecimentos } = useAbastecimentos();
   const { data: fazendas } = useFazendas();
   const { data: setores } = useSetores();
   const { mutateAsync: createTrator, isPending: isCreating } = useCreateTrator();
@@ -145,10 +143,20 @@ export const Tratores: React.FC = () => {
     return matchesSearch && matchesTab;
   }) || [];
 
-  const getEficienciaForTrator = (id: string): number => {
-    const ef = eficienciaTratores?.find(e => e.trator_id === id);
-    return ef?.eficiencia_percentual || 0;
-  };
+  const ultimoAbastecimentoPorTrator = useMemo(() => {
+    const map = new Map<string, { data: string; litros: number }>();
+    abastecimentos?.forEach((ab) => {
+      if (!map.has(ab.trator_id)) {
+        map.set(ab.trator_id, {
+          data: new Date(ab.data_abastecimento).toLocaleDateString('pt-BR'),
+          litros: ab.litros_abastecidos,
+        });
+      }
+    });
+    return map;
+  }, [abastecimentos]);
+
+  const handleViewTrator = (id: string) => navigate(`/tratores/${id}`);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -409,80 +417,184 @@ export const Tratores: React.FC = () => {
         </div>
       </div>
 
-      {/* Tractors List */}
-      <Card className="border-none shadow-sm">
+      {/* Mobile: cards */}
+      <div className="lg:hidden space-y-3">
+        {tratoresLoading ? (
+          <div className="p-8 flex justify-center">
+            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+          </div>
+        ) : tratoresFiltrados.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">Nenhum trator encontrado</div>
+        ) : (
+          tratoresFiltrados.map((trator) => {
+            const ultimoAbast = ultimoAbastecimentoPorTrator.get(trator.id);
+            return (
+              <Card key={trator.id} className="border-none shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex gap-3">
+                    <TractorImage
+                      src={trator.imagem_url}
+                      alt={`${trator.marca} ${trator.modelo}`}
+                      size="lg"
+                      fit="contain"
+                      bordered={false}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-gray-900">{trator.patrimonio}</p>
+                          <p className="text-sm text-gray-600">{trator.marca} {trator.modelo}</p>
+                        </div>
+                        <Badge className={getStatusColor(trator.status)}>{trator.status}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Gauge className="w-3 h-3" />
+                          {trator.horimetro_atual != null ? `${trator.horimetro_atual.toLocaleString('pt-BR')} h` : '—'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Fuel className="w-3 h-3" />
+                          {trator.capacidade_tanque ? `${trator.capacidade_tanque} L` : '—'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          {trator.potencia_cv ? `${trator.potencia_cv} CV` : '—'}
+                        </span>
+                      </div>
+                      {(trator.fazenda?.nome || trator.setor) && (
+                        <p className="flex items-center gap-1 mt-1.5 text-xs text-gray-400">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          {[trator.fazenda?.nome, trator.setor].filter(Boolean).join(' • ')}
+                        </p>
+                      )}
+                      {ultimoAbast && (
+                        <p className="mt-2 text-xs">
+                          <span className="text-gray-400">Últ. Abast.: </span>
+                          <span className="text-green-600 font-medium">
+                            {ultimoAbast.data} · {ultimoAbast.litros} L
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-primary-600 border-primary-200 hover:bg-primary-50"
+                      onClick={() => handleViewTrator(trator.id)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="text-gray-500">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="text-gray-500">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop: tabela */}
+      <Card className="hidden lg:block border-none shadow-sm overflow-hidden">
         <CardContent className="p-0">
           {tratoresLoading ? (
             <div className="p-8 flex justify-center">
               <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
             </div>
+          ) : tratoresFiltrados.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              Nenhum trator encontrado
+            </div>
           ) : (
-            <>
-              {tratoresFiltrados.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  Nenhum trator encontrado
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/80">
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Patrimônio</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Trator</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Marca / Modelo</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Ano</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Horímetro</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Status</th>
+                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 hidden xl:table-cell">Fazenda / Setor</th>
+                    <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
                   {tratoresFiltrados.map((trator) => (
-                    <div
-                      key={trator.id}
-                      className="p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <TractorImage
-                        src={trator.imagem_url}
-                        alt={`${trator.marca} ${trator.modelo}`}
-                        size="sm"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-bold text-gray-900">{trator.patrimonio}</h3>
-                          <Badge className={getStatusColor(trator.status)}>
-                            {trator.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600">{trator.marca} {trator.modelo} {trator.ano}</p>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Gauge className="w-3 h-3" />
-                            {trator.horimetro_atual} h
+                    <tr key={trator.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 align-middle">
+                        <span className="font-semibold text-gray-900">{trator.patrimonio}</span>
+                      </td>
+                      <td className="px-4 py-4 align-middle">
+                        <div className="flex items-center gap-4">
+                          <TractorImage
+                            src={trator.imagem_url}
+                            alt={`${trator.marca} ${trator.modelo}`}
+                            size="wide"
+                            fit="contain"
+                            bordered={false}
+                          />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {trator.marca} {trator.modelo}
+                            </p>
+                            <p className="text-sm text-gray-500 lg:hidden">
+                              {trator.ano || '—'} · {trator.horimetro_atual ?? '—'} h
+                            </p>
                           </div>
-                          {trator.setor && (
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {trator.setor}
-                            </div>
-                          )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
-                          <div
-                            className="h-full bg-green-500"
-                            style={{ width: `${getEficienciaForTrator(trator.id)}%` }}
-                          ></div>
+                      </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-700 hidden lg:table-cell">
+                        {trator.marca} {trator.modelo}
+                      </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-700 hidden md:table-cell">
+                        {trator.ano || '—'}
+                      </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-700 hidden md:table-cell">
+                        {trator.horimetro_atual != null ? `${trator.horimetro_atual} h` : '—'}
+                      </td>
+                      <td className="px-4 py-4 align-middle">
+                        <Badge className={getStatusColor(trator.status)}>
+                          {trator.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-600 hidden xl:table-cell">
+                        <div>
+                          {trator.fazenda?.nome && <p>{trator.fazenda.nome}</p>}
+                          {trator.setor && <p className="text-xs text-gray-400">{trator.setor}</p>}
+                          {!trator.fazenda?.nome && !trator.setor && '—'}
                         </div>
-                        <span className={`text-sm font-bold ${getFuelIconColor(getEficienciaForTrator(trator.id))}`}>
-                          {getEficienciaForTrator(trator.id)}%
-                        </span>
-                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-500 hover:text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-500">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                      </td>
+                      <td className="px-4 py-4 align-middle">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-gray-500 hover:text-primary-600"
+                            onClick={() => handleViewTrator(trator.id)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-gray-500 hover:text-primary-600">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-gray-500">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              )}
-            </>
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -277,6 +277,24 @@ CREATE POLICY "Permitir acesso aos usuarios" ON usuarios
     FOR ALL USING (true);
 
 CREATE POLICY "Permitir acesso aos setores" ON setores
-    FOR ALL USING (true);
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso aos tratores" ON tratores
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso aos abastecimentos" ON abastecimentos
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso aos checklists" ON checklists
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso aos checklist_itens" ON checklist_itens
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso aos pneus" ON pneus
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Permitir acesso as manutencoes" ON manutencoes
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- (Você pode adicionar políticas mais restritivas posteriormente)

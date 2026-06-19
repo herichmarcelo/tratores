@@ -6,12 +6,16 @@ const sizeClasses = {
   sm: 'w-12 h-12',
   md: 'w-16 h-16',
   lg: 'w-20 h-20',
+  xl: 'w-24 h-24',
+  wide: 'w-32 h-20',
 };
 
 const iconSizes = {
   sm: 'w-6 h-6',
   md: 'w-8 h-8',
   lg: 'w-10 h-10',
+  xl: 'w-12 h-12',
+  wide: 'w-10 h-10',
 };
 
 interface TractorImageProps {
@@ -19,6 +23,8 @@ interface TractorImageProps {
   alt?: string;
   className?: string;
   size?: keyof typeof sizeClasses;
+  fit?: 'contain' | 'cover';
+  bordered?: boolean;
 }
 
 export const TractorImage: React.FC<TractorImageProps> = ({
@@ -26,12 +32,21 @@ export const TractorImage: React.FC<TractorImageProps> = ({
   alt = 'Trator',
   className,
   size = 'sm',
+  fit = 'contain',
+  bordered = true,
 }) => {
+  const imgFit = fit === 'cover' ? 'object-cover' : 'object-contain';
+  const frameClass = bordered
+    ? 'rounded-lg overflow-hidden border border-gray-200 bg-white'
+    : 'rounded-md overflow-hidden bg-transparent';
+
   if (src) {
     return (
       <div
         className={cn(
-          'rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center p-1',
+          frameClass,
+          'flex items-center justify-center shrink-0',
+          bordered && fit === 'contain' && 'p-1',
           sizeClasses[size],
           className,
         )}
@@ -39,7 +54,7 @@ export const TractorImage: React.FC<TractorImageProps> = ({
         <img
           src={src}
           alt={alt}
-          className="w-full h-full object-contain"
+          className={cn('w-full h-full', imgFit)}
         />
       </div>
     );
@@ -48,7 +63,9 @@ export const TractorImage: React.FC<TractorImageProps> = ({
   return (
     <div
       className={cn(
-        'rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center',
+        frameClass,
+        bordered ? 'bg-gray-50' : 'bg-gray-100',
+        'flex items-center justify-center shrink-0',
         sizeClasses[size],
         className,
       )}

@@ -70,10 +70,10 @@ ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE setores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tratores ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Permitir acesso fazendas" ON fazendas FOR ALL USING (true);
-CREATE POLICY "Permitir acesso usuarios" ON usuarios FOR ALL USING (true);
-CREATE POLICY "Permitir acesso setores" ON setores FOR ALL USING (true);
-CREATE POLICY "Permitir acesso tratores" ON tratores FOR ALL USING (true);
+CREATE POLICY "Permitir acesso fazendas" ON fazendas FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso usuarios" ON usuarios FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso setores" ON setores FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir acesso tratores" ON tratores FOR ALL USING (true) WITH CHECK (true);
 
 -- Admin inicial (senha: 123456)
 INSERT INTO usuarios (nome, email, cargo, perfil, senha_hash)

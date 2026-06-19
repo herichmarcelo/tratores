@@ -118,7 +118,8 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         <nav className="p-4 space-y-1">
           {filteredNavItems.map((item) => {
             const isActive = location.pathname === item.path
-              || (item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes'));
+              || (item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes'))
+              || (item.path === '/tratores' && location.pathname.startsWith('/tratores'));
             return (
               <Link
                 key={item.path}

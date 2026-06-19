@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { Login } from '../pages/Login';
 import { Dashboard } from '../pages/Dashboard';
 import { Tratores } from '../pages/Tratores';
+import { TratorDetail } from '../pages/TratorDetail';
 import { Abastecimento } from '../pages/Abastecimento';
 import { Checklists } from '../pages/Checklists';
 import Relatorios from '../pages/Relatorios';
@@ -68,6 +69,14 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 {withLayout(<Abastecimento />)}
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tratores/:id"
+            element={
+              <AdminRoute>
+                {withLayout(<TratorDetail />)}
+              </AdminRoute>
             }
           />
           <Route
