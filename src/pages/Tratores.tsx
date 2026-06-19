@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Plus,
-  MoreHorizontal,
+  MoreVertical,
   Edit,
   Eye,
-  Filter,
   Tractor,
   Calendar,
   Gauge,
@@ -15,6 +14,10 @@ import {
   Fuel,
   Zap,
   MapPin,
+  SlidersHorizontal,
+  Hourglass,
+  Wrench,
+  Pause,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -31,10 +34,23 @@ const getStatusColor = (status: string) => {
   if (lower.includes('ativo') || lower.includes('active') || lower.includes('ok')) {
     return 'bg-green-100 text-green-700 border-green-200';
   }
-  if (lower.includes('manutenção') || lower.includes('pendente') || lower.includes('inativo')) {
+  if (lower.includes('manutenção') || lower.includes('em_andamento') || lower.includes('pendente')) {
     return 'bg-amber-100 text-amber-700 border-amber-200';
   }
+  if (lower.includes('inativo')) {
+    return 'bg-red-100 text-red-700 border-red-200';
+  }
   return 'bg-gray-100 text-gray-700 border-gray-200';
+};
+
+const formatStatus = (status: string) => {
+  const map: Record<string, string> = {
+    ativo: 'Ativo',
+    pendente: 'Pendente',
+    em_andamento: 'Em Manutenção',
+    inativo: 'Inativo',
+  };
+  return map[status.toLowerCase()] || status;
 };
 
 const initialFormState = {
@@ -130,7 +146,11 @@ export const Tratores: React.FC = () => {
 
   const tratoresAtivos = tratores?.filter(t => t.status.toLowerCase() === 'ativo').length || 0;
   const tratoresManutencao = tratores?.filter(t => t.status.toLowerCase() === 'pendente' || t.status.toLowerCase() === 'em_andamento').length || 0;
-  const tratoresInativos = (tratores?.length || 0) - (tratoresAtivos + tratoresManutencao);
+  const totalTratores = tratores?.length || 0;
+  const tratoresInativos = totalTratores - (tratoresAtivos + tratoresManutencao);
+  const pctAtivos = totalTratores ? ((tratoresAtivos / totalTratores) * 100).toFixed(1) : '0';
+  const pctManutencao = totalTratores ? ((tratoresManutencao / totalTratores) * 100).toFixed(1) : '0';
+  const pctInativos = totalTratores ? ((tratoresInativos / totalTratores) * 100).toFixed(1) : '0';
 
   const tratoresFiltrados = tratores?.filter((trator) => {
     const matchesSearch = trator.patrimonio.toLowerCase().includes(search.toLowerCase())
@@ -159,8 +179,9 @@ export const Tratores: React.FC = () => {
   const handleViewTrator = (id: string) => navigate(`/tratores/${id}`);
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="lg:p-6 space-y-6">
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-center justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Tratores</h1>
           <p className="text-gray-500 mt-1">Gerencie sua frota</p>
@@ -172,6 +193,218 @@ export const Tratores: React.FC = () => {
           <Plus className="w-4 h-4" />
           Adicionar Trator
         </Button>
+      </div>
+
+      {/* Mobile layout */}
+      <div className="lg:hidden bg-gray-50 min-h-[calc(100vh-8rem)] pb-24">
+        {/* Busca + Filtros */}
+        <div className="px-4 pt-4 pb-3 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              placeholder="Buscar por patrimônio, marca, modelo..."
+              className="pl-10 pr-4 bg-white border-gray-200 rounded-xl h-11 shadow-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0 h-11 rounded-xl border-gray-200 bg-white flex items-center gap-2 text-gray-700 shadow-sm"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros
+          </Button>
+        </div>
+
+        {/* Stats compactos — 4 colunas na tela */}
+        <div className="px-4 pb-3 grid grid-cols-4 gap-2">
+          {[
+            {
+              icon: Tractor,
+              iconBg: 'bg-green-500',
+              label: 'Total',
+              value: totalTratores,
+              subtitle: 'Cadastrados',
+            },
+            {
+              icon: Tractor,
+              iconBg: 'bg-blue-500',
+              label: 'Ativos',
+              value: tratoresAtivos,
+              subtitle: `${Number(pctAtivos).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% da frota`,
+            },
+            {
+              icon: Wrench,
+              iconBg: 'bg-amber-500',
+              label: 'Manutenção',
+              value: tratoresManutencao,
+              subtitle: `${Number(pctManutencao).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% da frota`,
+            },
+            {
+              icon: Pause,
+              iconBg: 'bg-red-500',
+              label: 'Inativos',
+              value: tratoresInativos,
+              subtitle: `${Number(pctInativos).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% da frota`,
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-2 min-w-0 flex flex-col"
+            >
+              <div className="flex items-start justify-between gap-0.5 mb-1">
+                <div className={`w-7 h-7 rounded-full ${stat.iconBg} flex items-center justify-center shrink-0`}>
+                  <stat.icon className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+                </div>
+                <span className="text-[9px] text-gray-500 font-medium leading-tight text-right line-clamp-2">
+                  {stat.label}
+                </span>
+              </div>
+              <p className="text-lg font-bold text-gray-900 leading-none text-center">
+                {tratoresLoading ? '—' : stat.value}
+              </p>
+              <p className="text-[8px] text-gray-400 text-center mt-1 leading-tight line-clamp-2">
+                {stat.subtitle}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs de filtro */}
+        <div className="px-4 pb-2 flex gap-5 overflow-x-auto">
+          {[
+            { id: 'todos', label: 'Todos' },
+            { id: 'ativos', label: 'Ativos' },
+            { id: 'manutencao', label: 'Manutenção' },
+            { id: 'inativos', label: 'Inativos' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`text-sm whitespace-nowrap pb-1 transition-colors ${
+                activeTab === tab.id
+                  ? 'text-gray-900 font-bold'
+                  : 'text-gray-500 font-medium'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Lista de cards */}
+        <div className="px-4 space-y-3 pt-1">
+          {tratoresLoading ? (
+            <div className="py-12 flex justify-center">
+              <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+            </div>
+          ) : tratoresFiltrados.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">Nenhum trator encontrado</div>
+          ) : (
+            tratoresFiltrados.map((trator) => {
+              const ultimoAbast = ultimoAbastecimentoPorTrator.get(trator.id);
+              return (
+                <Card key={trator.id} className="border-none shadow-sm rounded-xl overflow-hidden">
+                  <CardContent className="p-3.5">
+                    <div className="flex gap-3">
+                      <TractorImage
+                        src={trator.imagem_url}
+                        alt={`${trator.marca} ${trator.modelo}`}
+                        size="wide"
+                        fit="contain"
+                        bordered={false}
+                        className="w-[88px] h-[68px] shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 text-base leading-tight">{trator.patrimonio}</p>
+                            <p className="text-sm text-gray-500 truncate">
+                              {trator.marca} {trator.modelo}
+                            </p>
+                          </div>
+                          <Badge className={`${getStatusColor(trator.status)} shrink-0 text-xs`}>
+                            {formatStatus(trator.status)}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-2 mt-2">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Hourglass className="w-3.5 h-3.5 text-gray-400" />
+                              {trator.horimetro_atual != null
+                                ? `${trator.horimetro_atual.toLocaleString('pt-BR')} h`
+                                : '—'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Fuel className="w-3.5 h-3.5 text-gray-400" />
+                              {trator.capacidade_tanque ? `${trator.capacidade_tanque} L` : '—'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Zap className="w-3.5 h-3.5 text-gray-400" />
+                              {trator.potencia_cv ? `${trator.potencia_cv} CV` : '—'}
+                            </span>
+                          </div>
+                          {ultimoAbast && (
+                            <div className="text-right shrink-0">
+                              <p className="text-[10px] text-gray-400 leading-tight">Últ. Abast.:</p>
+                              <p className="text-[11px] text-gray-600">{ultimoAbast.data}</p>
+                              <p className="text-sm font-semibold text-green-600 leading-tight">
+                                {ultimoAbast.litros} Litros
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                      <p className="flex items-center gap-1 text-xs text-gray-400 min-w-0 truncate pr-2">
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        {[trator.fazenda?.nome, trator.setor].filter(Boolean).join(' • ') || 'Sem localização'}
+                      </p>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-primary-600 border-gray-200 hover:bg-primary-50 hover:border-primary-200"
+                          onClick={() => handleViewTrator(trator.id)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-gray-500 border-gray-200"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg text-gray-500 border-gray-200"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+
+        {/* FAB Novo Trator */}
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          className="fixed bottom-[4.5rem] right-4 z-30 flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg pl-4 pr-5 py-3 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          <span className="font-semibold text-sm">Novo Trator</span>
+        </button>
       </div>
 
       {showAddModal && (
@@ -313,8 +546,8 @@ export const Tratores: React.FC = () => {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stats Cards — desktop */}
+      <div className="hidden lg:grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-none shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -364,8 +597,8 @@ export const Tratores: React.FC = () => {
         </Card>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Filters — desktop */}
+      <div className="hidden lg:flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setActiveTab('todos')}
@@ -411,94 +644,13 @@ export const Tratores: React.FC = () => {
             />
           </div>
           <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-            <Filter className="w-4 h-4" />
+            <SlidersHorizontal className="w-4 h-4" />
             Filtrar
           </Button>
         </div>
       </div>
 
-      {/* Mobile: cards */}
-      <div className="lg:hidden space-y-3">
-        {tratoresLoading ? (
-          <div className="p-8 flex justify-center">
-            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
-          </div>
-        ) : tratoresFiltrados.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Nenhum trator encontrado</div>
-        ) : (
-          tratoresFiltrados.map((trator) => {
-            const ultimoAbast = ultimoAbastecimentoPorTrator.get(trator.id);
-            return (
-              <Card key={trator.id} className="border-none shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex gap-3">
-                    <TractorImage
-                      src={trator.imagem_url}
-                      alt={`${trator.marca} ${trator.modelo}`}
-                      size="lg"
-                      fit="contain"
-                      bordered={false}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-bold text-gray-900">{trator.patrimonio}</p>
-                          <p className="text-sm text-gray-600">{trator.marca} {trator.modelo}</p>
-                        </div>
-                        <Badge className={getStatusColor(trator.status)}>{trator.status}</Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Gauge className="w-3 h-3" />
-                          {trator.horimetro_atual != null ? `${trator.horimetro_atual.toLocaleString('pt-BR')} h` : '—'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Fuel className="w-3 h-3" />
-                          {trator.capacidade_tanque ? `${trator.capacidade_tanque} L` : '—'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Zap className="w-3 h-3" />
-                          {trator.potencia_cv ? `${trator.potencia_cv} CV` : '—'}
-                        </span>
-                      </div>
-                      {(trator.fazenda?.nome || trator.setor) && (
-                        <p className="flex items-center gap-1 mt-1.5 text-xs text-gray-400">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          {[trator.fazenda?.nome, trator.setor].filter(Boolean).join(' • ')}
-                        </p>
-                      )}
-                      {ultimoAbast && (
-                        <p className="mt-2 text-xs">
-                          <span className="text-gray-400">Últ. Abast.: </span>
-                          <span className="text-green-600 font-medium">
-                            {ultimoAbast.data} · {ultimoAbast.litros} L
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-primary-600 border-primary-200 hover:bg-primary-50"
-                      onClick={() => handleViewTrator(trator.id)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="text-gray-500">
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="text-gray-500">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
+      {/* Mobile: cards — rendered above in mobile layout section */}
 
       {/* Desktop: tabela */}
       <Card className="hidden lg:block border-none shadow-sm overflow-hidden">
@@ -586,7 +738,7 @@ export const Tratores: React.FC = () => {
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="text-gray-500">
-                            <MoreHorizontal className="w-4 h-4" />
+                            <MoreVertical className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>

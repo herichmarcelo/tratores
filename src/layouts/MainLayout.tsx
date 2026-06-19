@@ -16,6 +16,7 @@ import {
   Search,
   Bell,
   Leaf,
+  User,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { UserAvatar } from '../components/UserAvatar';
@@ -38,6 +39,23 @@ const navItems: NavItem[] = [
   { label: 'Manutenção', icon: Wrench, path: '/manutencao', roles: ['admin'] },
   { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['admin'] },
   { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['admin'] },
+];
+
+const bottomNavItems: NavItem[] = [
+  { label: 'Home', icon: Home, path: '/dashboard', roles: ['admin', 'collaborator'] },
+  { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
+  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin'] },
+  { label: 'Perfil', icon: User, path: '/configuracoes', roles: ['admin'] },
+];
+
+const mobilePageTitles: { match: (path: string) => boolean; label: string; icon: React.ElementType }[] = [
+  { match: (p) => p.startsWith('/tratores'), label: 'Tratores', icon: Tractor },
+  { match: (p) => p.startsWith('/abastecimento'), label: 'Abastecimentos', icon: Fuel },
+  { match: (p) => p.startsWith('/checklists'), label: 'Checklists', icon: ClipboardList },
+  { match: (p) => p.startsWith('/configuracoes'), label: 'Perfil', icon: User },
+  { match: (p) => p.startsWith('/dashboard'), label: 'Dashboard', icon: Home },
+  { match: (p) => p.startsWith('/relatorios'), label: 'Relatórios', icon: FileText },
 ];
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,6 +96,19 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     user ? item.roles.includes(user.role) : false
   );
 
+  const filteredBottomNavItems = bottomNavItems.filter(item =>
+    user ? item.roles.includes(user.role) : false
+  );
+
+  const mobilePage = mobilePageTitles.find((p) => p.match(location.pathname));
+  const MobilePageIcon = mobilePage?.icon ?? Leaf;
+  const mobilePageLabel = mobilePage?.label ?? 'PLUMA';
+
+  const isNavActive = (path: string) =>
+    location.pathname === path
+    || (path === '/configuracoes' && location.pathname.startsWith('/configuracoes'))
+    || (path === '/tratores' && location.pathname.startsWith('/tratores'));
+
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar toggle */}
@@ -86,14 +117,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white">
             {sidebarOpen ? <X /> : <Menu />}
           </Button>
-          <div className="flex items-center gap-2">
-            <Leaf className="w-8 h-8 text-yellow-400" />
-            <span className="font-bold text-white text-xl">PLUMA</span>
-          </div>
+        </div>
+        <div className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
+          <MobilePageIcon className="w-6 h-6 text-white" />
+          <span className="font-bold text-white text-lg">{mobilePageLabel}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-white">
+          <Button variant="ghost" size="icon" className="text-white relative">
             <Bell className="w-5 h-5" />
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+              3
+            </span>
           </Button>
         </div>
       </div>
@@ -117,9 +151,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
         <nav className="p-4 space-y-1">
           {filteredNavItems.map((item) => {
-            const isActive = location.pathname === item.path
-              || (item.path === '/configuracoes' && location.pathname.startsWith('/configuracoes'))
-              || (item.path === '/tratores' && location.pathname.startsWith('/tratores'));
+            const isActive = isNavActive(item.path);
             return (
               <Link
                 key={item.path}
@@ -170,7 +202,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       </aside>
 
       {/* Main content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0">
+      <main className="lg:ml-64 pt-16 lg:pt-0 pb-20 lg:pb-0">
         {/* Desktop header */}
         <header className="hidden lg:flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center gap-4">
@@ -209,6 +241,34 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         </header>
         {children}
       </main>
+
+      {/* Bottom navigation (mobile) */}
+      {filteredBottomNavItems.length > 0 && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-primary-700 to-primary-800 border-t border-primary-600 shadow-[0_-4px_12px_rgba(0,0,0,0.15)]">
+          <div className="flex items-stretch justify-around">
+            {filteredBottomNavItems.map((item) => {
+              const isActive = isNavActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-w-0 flex-1 relative ${
+                    isActive ? 'text-lime-300' : 'text-green-100/80'
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-lime-300 rounded-full" />
+                  )}
+                  <item.icon className={`w-5 h-5 ${isActive ? 'text-lime-300' : ''}`} />
+                  <span className={`text-[10px] font-medium truncate ${isActive ? 'text-lime-300' : ''}`}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (

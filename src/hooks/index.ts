@@ -162,12 +162,19 @@ export const useCreateUsuario = () => {
 export const useUpdateUsuario = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<User> & { id: string }) => {
+    mutationFn: async ({ id, senha, ...updates }: Partial<User> & { id: string; senha?: string }) => {
+      const payload: Record<string, unknown> = { ...updates }
+      if (updates.email) {
+        payload.email = updates.email.trim().toLowerCase()
+      }
+      if (senha) {
+        payload.senha_hash = await hashPassword(senha)
+      }
       const { data, error } = await supabase
         .from('usuarios')
-        .update(updates)
+        .update(payload)
         .eq('id', id)
-        .select()
+        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
         .single()
       if (error) throw error
       return data as User

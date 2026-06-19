@@ -6,6 +6,8 @@ import {
   MapPin,
   Loader2,
   Plus,
+  Edit,
+  X,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,12 +19,13 @@ import {
   useFazendas,
   useSetores,
   useCreateUsuario,
+  useUpdateUsuario,
   useCreateFazenda,
   useCreateSetor,
 } from '../hooks';
 import { AvatarUploadField, UserAvatar } from '../components/UserAvatar';
 import { uploadToCloudinary } from '../services/cloudinary';
-import type { UserProfile } from '../types';
+import type { User, UserProfile } from '../types';
 
 type ConfigTab = 'usuarios' | 'fazendas' | 'setores';
 
@@ -47,8 +50,11 @@ export const Configuracoes: React.FC = () => {
   const { data: setores, isLoading: setoresLoading } = useSetores();
 
   const { mutateAsync: createUsuario, isPending: creatingUsuario } = useCreateUsuario();
+  const { mutateAsync: updateUsuario, isPending: updatingUsuario } = useUpdateUsuario();
   const { mutateAsync: createFazenda, isPending: creatingFazenda } = useCreateFazenda();
   const { mutateAsync: createSetor, isPending: creatingSetor } = useCreateSetor();
+
+  const [editingUsuarioId, setEditingUsuarioId] = useState<string | null>(null);
 
   const [usuarioForm, setUsuarioForm] = useState({
     nome: '',
@@ -57,6 +63,7 @@ export const Configuracoes: React.FC = () => {
     confirmarSenha: '',
     cargo: '',
     perfil: 'colaborador' as UserProfile,
+    ativo: true,
   });
   const [usuarioFotoFile, setUsuarioFotoFile] = useState<File | null>(null);
   const [usuarioFotoPreview, setUsuarioFotoPreview] = useState<string | null>(null);
@@ -93,10 +100,83 @@ export const Configuracoes: React.FC = () => {
   };
 
   const resetUsuarioForm = () => {
-    setUsuarioForm({ nome: '', email: '', senha: '', confirmarSenha: '', cargo: '', perfil: 'colaborador' });
+    setEditingUsuarioId(null);
+    setUsuarioForm({
+      nome: '',
+      email: '',
+      senha: '',
+      confirmarSenha: '',
+      cargo: '',
+      perfil: 'colaborador',
+      ativo: true,
+    });
     setUsuarioFotoFile(null);
-    if (usuarioFotoPreview) URL.revokeObjectURL(usuarioFotoPreview);
+    if (usuarioFotoPreview && usuarioFotoPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(usuarioFotoPreview);
+    }
     setUsuarioFotoPreview(null);
+  };
+
+  const startEditUsuario = (usuario: User) => {
+    setEditingUsuarioId(usuario.id);
+    setUsuarioForm({
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: '',
+      confirmarSenha: '',
+      cargo: usuario.cargo || '',
+      perfil: usuario.perfil,
+      ativo: usuario.ativo,
+    });
+    setUsuarioFotoFile(null);
+    if (usuarioFotoPreview && usuarioFotoPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(usuarioFotoPreview);
+    }
+    setUsuarioFotoPreview(usuario.foto_url || null);
+    setError('');
+  };
+
+  const handleUpdateUsuario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    if (!editingUsuarioId) return;
+    if (!usuarioForm.nome.trim() || !usuarioForm.email.trim()) {
+      setError('Nome e e-mail são obrigatórios.');
+      return;
+    }
+    if (usuarioForm.senha || usuarioForm.confirmarSenha) {
+      if (usuarioForm.senha.length < 6) {
+        setError('A senha deve ter no mínimo 6 caracteres.');
+        return;
+      }
+      if (usuarioForm.senha !== usuarioForm.confirmarSenha) {
+        setError('As senhas não coincidem.');
+        return;
+      }
+    }
+    try {
+      let foto_url: string | undefined;
+      if (usuarioFotoFile) {
+        setIsUploadingUsuarioFoto(true);
+        foto_url = await uploadToCloudinary(usuarioFotoFile, 'usuarios');
+        setIsUploadingUsuarioFoto(false);
+      }
+
+      await updateUsuario({
+        id: editingUsuarioId,
+        nome: usuarioForm.nome.trim(),
+        email: usuarioForm.email.trim(),
+        cargo: usuarioForm.cargo.trim() || undefined,
+        perfil: usuarioForm.perfil,
+        ativo: usuarioForm.ativo,
+        ...(foto_url ? { foto_url } : {}),
+        ...(usuarioForm.senha ? { senha: usuarioForm.senha } : {}),
+      });
+      resetUsuarioForm();
+    } catch (err) {
+      setIsUploadingUsuarioFoto(false);
+      handleError(err);
+    }
   };
 
   const handleCreateUsuario = async (e: React.FormEvent) => {
@@ -225,12 +305,24 @@ export const Configuracoes: React.FC = () => {
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Plus className="w-5 h-5 text-primary-600" />
-                Novo Usuário
+                {editingUsuarioId ? (
+                  <>
+                    <Edit className="w-5 h-5 text-primary-600" />
+                    Editar Usuário
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5 text-primary-600" />
+                    Novo Usuário
+                  </>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleCreateUsuario} className="space-y-4">
+              <form
+                onSubmit={editingUsuarioId ? handleUpdateUsuario : handleCreateUsuario}
+                className="space-y-4"
+              >
                 <AvatarUploadField
                   preview={usuarioFotoPreview}
                   nome={usuarioForm.nome}
@@ -258,25 +350,29 @@ export const Configuracoes: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {editingUsuarioId ? 'Nova senha (opcional)' : 'Senha *'}
+                    </label>
                     <Input
                       type="password"
                       value={usuarioForm.senha}
                       onChange={(e) => setUsuarioForm((f) => ({ ...f, senha: e.target.value }))}
-                      placeholder="Mínimo 6 caracteres"
-                      required
-                      minLength={6}
+                      placeholder={editingUsuarioId ? 'Deixe em branco para manter' : 'Mínimo 6 caracteres'}
+                      required={!editingUsuarioId}
+                      minLength={editingUsuarioId ? undefined : 6}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar senha *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {editingUsuarioId ? 'Confirmar nova senha' : 'Confirmar senha *'}
+                    </label>
                     <Input
                       type="password"
                       value={usuarioForm.confirmarSenha}
                       onChange={(e) => setUsuarioForm((f) => ({ ...f, confirmarSenha: e.target.value }))}
-                      placeholder="Repita a senha"
-                      required
-                      minLength={6}
+                      placeholder={editingUsuarioId ? 'Repita se alterar a senha' : 'Repita a senha'}
+                      required={!editingUsuarioId}
+                      minLength={editingUsuarioId ? undefined : 6}
                     />
                   </div>
                 </div>
@@ -288,25 +384,58 @@ export const Configuracoes: React.FC = () => {
                     placeholder="Ex: Operador"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
-                  <Select
-                    value={usuarioForm.perfil}
-                    onChange={(e) => setUsuarioForm((f) => ({ ...f, perfil: e.target.value as UserProfile }))}
-                  >
-                    <option value="administrador">Administrador</option>
-                    <option value="gestor">Gestor</option>
-                    <option value="colaborador">Colaborador</option>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
+                    <Select
+                      value={usuarioForm.perfil}
+                      onChange={(e) => setUsuarioForm((f) => ({ ...f, perfil: e.target.value as UserProfile }))}
+                    >
+                      <option value="administrador">Administrador</option>
+                      <option value="gestor">Gestor</option>
+                      <option value="colaborador">Colaborador</option>
+                    </Select>
+                  </div>
+                  {editingUsuarioId && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <Select
+                        value={usuarioForm.ativo ? 'ativo' : 'inativo'}
+                        onChange={(e) => setUsuarioForm((f) => ({ ...f, ativo: e.target.value === 'ativo' }))}
+                      >
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                      </Select>
+                    </div>
+                  )}
                 </div>
                 {error && <p className="text-sm text-red-600">{error}</p>}
-                <Button
-                  type="submit"
-                  className="bg-primary-600 hover:bg-primary-700 w-full"
-                  disabled={creatingUsuario || isUploadingUsuarioFoto}
-                >
-                  {creatingUsuario || isUploadingUsuarioFoto ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Usuário'}
-                </Button>
+                <div className="flex gap-3">
+                  {editingUsuarioId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={resetUsuarioForm}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    className="bg-primary-600 hover:bg-primary-700 flex-1"
+                    disabled={creatingUsuario || updatingUsuario || isUploadingUsuarioFoto}
+                  >
+                    {creatingUsuario || updatingUsuario || isUploadingUsuarioFoto ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : editingUsuarioId ? (
+                      'Salvar Alterações'
+                    ) : (
+                      'Salvar Usuário'
+                    )}
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -326,7 +455,12 @@ export const Configuracoes: React.FC = () => {
                     <p className="p-6 text-center text-gray-500">Nenhum usuário cadastrado</p>
                   ) : (
                     usuarios?.map((usuario) => (
-                      <div key={usuario.id} className="p-4 flex items-center gap-3">
+                      <div
+                        key={usuario.id}
+                        className={`p-4 flex items-center gap-3 transition-colors ${
+                          editingUsuarioId === usuario.id ? 'bg-primary-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
                         <UserAvatar src={usuario.foto_url} nome={usuario.nome} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900">{usuario.nome}</p>
@@ -343,6 +477,15 @@ export const Configuracoes: React.FC = () => {
                             {usuario.ativo ? 'Ativo' : 'Inativo'}
                           </Badge>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-500 hover:text-primary-600 shrink-0"
+                          onClick={() => startEditUsuario(usuario)}
+                          title="Editar usuário"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                       </div>
                     ))
                   )}
