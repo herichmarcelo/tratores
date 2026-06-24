@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 type ThemePreference = 'light' | 'dark' | 'system';
 type Theme = 'light' | 'dark';
@@ -12,23 +11,27 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [preference, setPreference] = useState<ThemePreference>(() => {
     const saved = localStorage.getItem('theme-preference');
     return (saved as ThemePreference) || 'system';
   });
 
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('theme-preference');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   useEffect(() => {
     localStorage.setItem('theme-preference', preference);
+  }, [preference]);
 
-    const applyTheme = () => {
+  useEffect(() => {
+    const updateTheme = () => {
       let newTheme: Theme;
-
       if (preference === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        newTheme = prefersDark ? 'dark' : 'light';
+        newTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       } else {
         newTheme = preference;
       }
@@ -42,17 +45,17 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     };
 
-    applyTheme();
+    updateTheme();
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleSystemChange = () => {
+    const handleChange = () => {
       if (preference === 'system') {
-        applyTheme();
+        updateTheme();
       }
     };
 
-    mediaQuery.addEventListener('change', handleSystemChange);
-    return () => mediaQuery.removeEventListener('change', handleSystemChange);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [preference]);
 
   return (

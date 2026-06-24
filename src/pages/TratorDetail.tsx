@@ -141,8 +141,8 @@ export const TratorDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background dark:bg-[#0A0A0A] pb-6">
-      {/* Header com voltar */}
-      <div className="sticky top-16 lg:top-0 z-10 bg-white dark:bg-[#14141A] border-b border-gray-100 dark:border-[#2A2A2A] px-4 lg:px-6 py-3 flex items-center justify-between">
+      {/* Header com voltar CORRIGIDO */}
+      <div className="sticky top-0 z-50 bg-white dark:bg-[#14141A] border-b border-gray-100 dark:border-[#2A2A2A] px-4 lg:px-6 py-3 flex items-center justify-between shadow-sm">
         <Button
           variant="ghost"
           className="text-gray-600 dark:text-[#B3B3B3] hover:text-ff-yellow dark:hover:text-ff-yellow -ml-2"

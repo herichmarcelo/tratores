@@ -306,6 +306,26 @@ export const useCreateTrator = () => {
   })
 }
 
+export const useUpdateTrator = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...trator }: Partial<Tractor> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('tratores')
+        .update(trator)
+        .eq('id', id)
+        .select('*, fazenda:fazendas(*)')
+        .single()
+      if (error) throw error
+      return data as Tractor
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tratores'] })
+      queryClient.invalidateQueries({ queryKey: ['vw_eficiencia_tratores'] })
+    },
+  })
+}
+
 // Mutations (exemplo)
 export const useCreateAbastecimento = () => {
   const queryClient = useQueryClient()
