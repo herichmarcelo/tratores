@@ -24,7 +24,7 @@ import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { useTratores, useCreateTrator, useFazendas, useSetores, useAbastecimentos } from '../hooks';
+import { useTratores, useCreateTrator, useUpdateTrator, useFazendas, useSetores, useAbastecimentos } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { TractorImage } from '../components/TractorImage';
 import { ImageUpload } from '../components/ImageUpload';
@@ -61,6 +61,8 @@ const initialFormState = {
   ano: '',
   setor: '',
   horimetro_atual: '',
+  capacidade_tanque: '',
+  potencia_cv: '',
   status: 'ativo',
   fazenda_id: '',
 };
@@ -71,6 +73,7 @@ export const Tratores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('todos');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialFormState);
   const [formError, setFormError] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -81,12 +84,32 @@ export const Tratores: React.FC = () => {
   const { data: fazendas } = useFazendas();
   const { data: setores } = useSetores();
   const { mutateAsync: createTrator, isPending: isCreating } = useCreateTrator();
+  const { mutateAsync: updateTrator, isPending: isUpdating } = useUpdateTrator();
 
   const isDark = theme === 'dark';
 
   const handleFormChange = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFormError('');
+  };
+
+  const handleOpenEdit = (trator: any) => {
+    setForm({
+      patrimonio: trator.patrimonio,
+      marca: trator.marca || '',
+      modelo: trator.modelo || '',
+      ano: trator.ano ? String(trator.ano) : '',
+      setor: trator.setor || '',
+      horimetro_atual: trator.horimetro_atual != null ? String(trator.horimetro_atual) : '',
+      capacidade_tanque: trator.capacidade_tanque != null ? String(trator.capacidade_tanque) : '',
+      potencia_cv: trator.potencia_cv != null ? String(trator.potencia_cv) : '',
+      status: trator.status,
+      fazenda_id: trator.fazenda_id || '',
+    });
+    setEditingId(trator.id);
+    setImagePreview(trator.imagem_url || null);
+    setImageFile(null);
+    setShowAddModal(true);
   };
 
   const handleCloseModal = () => {
@@ -96,6 +119,7 @@ export const Tratores: React.FC = () => {
     setImageFile(null);
     setImagePreview(null);
     setIsUploadingImage(false);
+    setEditingId(null);
   };
 
   const handleImageSelect = (file: File) => {
@@ -110,7 +134,7 @@ export const Tratores: React.FC = () => {
     setImagePreview(null);
   };
 
-  const handleCreateTrator = async (e: React.FormEvent) => {
+  const handleSaveTrator = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.patrimonio.trim()) {
       setFormError('O patrimônio é obrigatório.');
@@ -118,28 +142,37 @@ export const Tratores: React.FC = () => {
     }
 
     try {
-      let imagemUrl: string | undefined;
+      let imagemUrl: string | undefined = imagePreview ?? undefined;
       if (imageFile) {
         setIsUploadingImage(true);
         imagemUrl = await uploadToCloudinary(imageFile);
         setIsUploadingImage(false);
       }
 
-      await createTrator({
+      const payload = {
         patrimonio: form.patrimonio.trim(),
         marca: form.marca.trim() || undefined,
         modelo: form.modelo.trim() || undefined,
         ano: form.ano ? parseInt(form.ano, 10) : undefined,
         setor: form.setor.trim() || undefined,
         horimetro_atual: form.horimetro_atual ? parseFloat(form.horimetro_atual) : undefined,
+        capacidade_tanque: form.capacidade_tanque ? parseFloat(form.capacidade_tanque) : undefined,
+        potencia_cv: form.potencia_cv ? parseFloat(form.potencia_cv) : undefined,
         status: form.status,
         fazenda_id: form.fazenda_id || undefined,
         imagem_url: imagemUrl,
-      });
+      };
+
+      if (editingId) {
+        await updateTrator({ id: editingId, ...payload });
+      } else {
+        await createTrator(payload);
+      }
+
       handleCloseModal();
     } catch (err) {
       setIsUploadingImage(false);
-      const message = (err as { message?: string })?.message || 'Erro ao criar trator.';
+      const message = (err as { message?: string })?.message || 'Erro ao salvar trator.';
       if (message.includes('duplicate') || message.includes('unique')) {
         setFormError('Já existe um trator com este patrimônio.');
       } else {
@@ -385,6 +418,7 @@ export const Tratores: React.FC = () => {
                           variant="outline"
                           size="icon"
                           className="h-9 w-9 rounded-lg text-gray-500 dark:text-gray-400 border-gray-200 dark:border-[#262626] hover:bg-gray-50 dark:hover:bg-[#1A1A1A]"
+                          onClick={() => handleOpenEdit(trator)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -424,12 +458,14 @@ export const Tratores: React.FC = () => {
           />
           <div className="relative bg-white dark:bg-[#111111] rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-[#262626]">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Adicionar Trator</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {editingId ? 'Editar Trator' : 'Adicionar Trator'}
+              </h2>
               <Button variant="ghost" size="icon" onClick={handleCloseModal} className="text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#1A1A1A]">
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <form onSubmit={handleCreateTrator} className="p-6 space-y-4">
+            <form onSubmit={handleSaveTrator} className="p-6 space-y-4">
               <ImageUpload
                 preview={imagePreview}
                 onFileSelect={handleImageSelect}
@@ -468,7 +504,7 @@ export const Tratores: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ano</label>
                   <Input
@@ -488,6 +524,28 @@ export const Tratores: React.FC = () => {
                     value={form.horimetro_atual}
                     onChange={(e) => handleFormChange('horimetro_atual', e.target.value)}
                     className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Capacidade Tanque (L)</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 150"
+                    value={form.capacidade_tanque}
+                    onChange={(e) => handleFormChange('capacidade_tanque', e.target.value)}
+                    className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Potência (CV)</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="Ex: 80"
+                    value={form.potencia_cv}
+                    onChange={(e) => handleFormChange('potencia_cv', e.target.value)}
+                    className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] dark:text-white"
                   />
                 </div>
               </div>
@@ -546,13 +604,15 @@ export const Tratores: React.FC = () => {
                 <Button
                   type="submit"
                   className="bg-primary-600 dark:bg-ff-yellow hover:bg-primary-700 dark:hover:brightness-110 text-gray-900 dark:text-[#0A0A0A]"
-                  disabled={isCreating || isUploadingImage}
+                  disabled={isCreating || isUpdating || isUploadingImage}
                 >
-                  {isCreating || isUploadingImage ? (
+                  {isCreating || isUpdating || isUploadingImage ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                       Salvando...
                     </>
+                  ) : editingId ? (
+                    'Atualizar Trator'
                   ) : (
                     'Salvar Trator'
                   )}
@@ -688,7 +748,9 @@ export const Tratores: React.FC = () => {
                     <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Marca / Modelo</th>
                     <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Ano</th>
                     <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Horímetro</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
+                      <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Tanque (L)</th>
+                      <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Potência (CV)</th>
+                      <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3">Status</th>
                     <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3 hidden xl:table-cell">Fazenda / Setor</th>
                     <th className="text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-4 py-3">Ações</th>
                   </tr>
@@ -727,6 +789,12 @@ export const Tratores: React.FC = () => {
                       <td className="px-4 py-4 align-middle text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
                         {trator.horimetro_atual != null ? `${trator.horimetro_atual} h` : '—'}
                       </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                        {trator.capacidade_tanque != null ? `${trator.capacidade_tanque} L` : '—'}
+                      </td>
+                      <td className="px-4 py-4 align-middle text-sm text-gray-700 dark:text-gray-300 hidden md:table-cell">
+                        {trator.potencia_cv != null ? `${trator.potencia_cv} CV` : '—'}
+                      </td>
                       <td className="px-4 py-4 align-middle">
                         <Badge className={getStatusColor(trator.status, isDark)}>
                           {trator.status}
@@ -749,7 +817,7 @@ export const Tratores: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-ff-yellow">
+                          <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-ff-yellow" onClick={() => handleOpenEdit(trator)}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-ff-yellow">
