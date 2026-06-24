@@ -10,6 +10,8 @@ import {
   TrendingUp,
   Users,
   Loader2,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   LineChart,
@@ -23,6 +25,8 @@ import {
   Bar,
 } from 'recharts';
 import { useTratores, useAbastecimentos, usePneus, useManutencoes, useChecklists, useVwEficienciaTratores } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
+import { Button } from '../components/ui/button';
 
 const DashboardCard = ({
   title,
@@ -37,24 +41,25 @@ const DashboardCard = ({
   colorClass: string;
   loading?: boolean;
 }) => (
-  <Card className="hover:shadow-md transition-shadow">
+  <Card className="hover:shadow-md transition-shadow border-none">
     <CardHeader className="flex flex-row items-center justify-between pb-2">
-      <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+      <CardTitle className="text-sm font-medium text-gray-600 dark:text-[#B3B3B3]">{title}</CardTitle>
       <div className={`p-2 rounded-lg ${colorClass}`}>
         {loading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Icon className="w-5 h-5 text-white" />}
       </div>
     </CardHeader>
     <CardContent>
       {loading ? (
-        <div className="h-8 bg-gray-200 rounded animate-pulse" />
+        <div className="h-8 bg-gray-200 dark:bg-[#1A1A1A] rounded animate-pulse" />
       ) : (
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
+        <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
       )}
     </CardContent>
   </Card>
 );
 
 export const Dashboard: React.FC = () => {
+  const { theme, setPreference } = useTheme();
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: pneus, isLoading: pneusLoading } = usePneus();
@@ -99,13 +104,25 @@ export const Dashboard: React.FC = () => {
     { month: 'Jun', count: 2 },
   ];
 
+  const toggleTheme = () => {
+    setPreference(theme === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-1">Visão geral da frota</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-500 dark:text-[#B3B3B3] mt-1">Visão geral da frota</p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="text-gray-700 dark:text-white border border-gray-200 dark:border-[#2A2A2A] rounded-lg"
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -113,28 +130,28 @@ export const Dashboard: React.FC = () => {
           title="Tratores Ativos"
           value={tratoresAtivos}
           icon={Tractor}
-          colorClass="bg-primary-600"
+          colorClass="bg-ff-green-active"
           loading={tratoresLoading}
         />
         <DashboardCard
           title="Litros Abastecidos"
           value={`${totalLitros.toLocaleString('pt-BR')} L`}
           icon={Fuel}
-          colorClass="bg-amber-500"
+          colorClass="bg-ff-yellow"
           loading={abastecimentosLoading}
         />
         <DashboardCard
           title="Pneus com Alerta"
           value={pneusAlerta}
           icon={Truck}
-          colorClass="bg-red-500"
+          colorClass="bg-ff-danger"
           loading={pneusLoading}
         />
         <DashboardCard
           title="Em Manutenção"
           value={emManutencao}
           icon={Wrench}
-          colorClass="bg-blue-500"
+          colorClass="bg-ff-warning"
           loading={manutencoesLoading}
         />
         <DashboardCard
@@ -170,20 +187,20 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card className="lg:col-span-1 border-none shadow-md">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold text-gray-900">🌱 EFICIÊNCIA DA FROTA</CardTitle>
+            <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">🌱 EFICIÊNCIA DA FROTA</CardTitle>
           </CardHeader>
           <CardContent>
             {eficienciaLoading ? (
               <div className="flex justify-center items-center h-40">
-                <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+                <Loader2 className="w-8 h-8 text-ff-yellow animate-spin" />
               </div>
             ) : (
               <div className="text-center space-y-4">
-                <p className="text-6xl font-bold text-primary-600">{eficienciaMedia}%</p>
-                <div className="h-6 bg-gray-100 rounded-full overflow-hidden mx-8">
-                  <div className="h-full bg-primary-600 rounded-full" style={{ width: `${eficienciaMedia}%` }} />
+                <p className="text-6xl font-bold text-ff-green-active">{eficienciaMedia}%</p>
+                <div className="h-6 bg-gray-100 dark:bg-[#1A1A1A] rounded-full overflow-hidden mx-8">
+                  <div className="h-full bg-ff-green-active rounded-full" style={{ width: `${eficienciaMedia}%` }} />
                 </div>
-                <p className="text-xl font-semibold text-green-600">
+                <p className="text-xl font-semibold text-ff-green-active">
                   {eficienciaMedia >= 90 ? 'Excelente' : eficienciaMedia >= 75 ? 'Atenção' : 'Baixa'}
                 </p>
               </div>
@@ -194,21 +211,21 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-primary-600">🚜</span>
+              <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="text-ff-green-active">🚜</span>
                 Melhor Trator
               </CardTitle>
             </CardHeader>
             <CardContent>
               {eficienciaLoading ? (
                 <div className="flex justify-center items-center h-24">
-                  <Loader2 className="w-6 h-6 text-primary-600 animate-spin" />
+                  <Loader2 className="w-6 h-6 text-ff-yellow animate-spin" />
                 </div>
               ) : melhorTrator ? (
                 <div className="space-y-3">
-                  <p className="text-xl font-bold text-gray-900">{melhorTrator.patrimonio}</p>
-                  <p className="text-sm text-gray-600">{melhorTrator.marca} {melhorTrator.modelo}</p>
-                  <p className="text-3xl font-bold text-green-600">{melhorTrator.eficiencia_percentual}%</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{melhorTrator.patrimonio}</p>
+                  <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">{melhorTrator.marca} {melhorTrator.modelo}</p>
+                  <p className="text-3xl font-bold text-ff-green-active">{melhorTrator.eficiencia_percentual}%</p>
                 </div>
               ) : null}
             </CardContent>
@@ -216,21 +233,21 @@ export const Dashboard: React.FC = () => {
 
           <Card className="border-none shadow-md">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <span className="text-red-600">🚜</span>
+              <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <span className="text-ff-danger">🚜</span>
                 Pior Trator
               </CardTitle>
             </CardHeader>
             <CardContent>
               {eficienciaLoading ? (
                 <div className="flex justify-center items-center h-24">
-                  <Loader2 className="w-6 h-6 text-primary-600 animate-spin" />
+                  <Loader2 className="w-6 h-6 text-ff-yellow animate-spin" />
                 </div>
               ) : piorTrator ? (
                 <div className="space-y-3">
-                  <p className="text-xl font-bold text-gray-900">{piorTrator.patrimonio}</p>
-                  <p className="text-sm text-gray-600">{piorTrator.marca} {piorTrator.modelo}</p>
-                  <p className="text-3xl font-bold text-red-600">{piorTrator.eficiencia_percentual}%</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{piorTrator.patrimonio}</p>
+                  <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">{piorTrator.marca} {piorTrator.modelo}</p>
+                  <p className="text-3xl font-bold text-ff-danger">{piorTrator.eficiencia_percentual}%</p>
                 </div>
               ) : null}
             </CardContent>
@@ -239,24 +256,24 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="border-none">
           <CardHeader>
-            <CardTitle className="text-lg">Consumo Semanal</CardTitle>
+            <CardTitle className="text-lg text-gray-900 dark:text-white">Consumo Semanal</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={consumptionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="day" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#2A2A2A' : '#e5e7eb'} />
+                  <XAxis dataKey="day" stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} />
+                  <YAxis stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} />
+                  <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#141414' : 'white', border: `1px solid ${theme === 'dark' ? '#2A2A2A' : '#e5e7eb'}` }} />
                   <Line
                     type="monotone"
                     dataKey="liters"
-                    stroke="#0F6D2B"
+                    stroke="#F4B400"
                     strokeWidth={2}
-                    fill="#bbf7d0"
+                    fill={theme === 'dark' ? '#1A1A1A' : '#bbf7d0'}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -264,19 +281,19 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none">
           <CardHeader>
-            <CardTitle className="text-lg">Manutenções por Mês</CardTitle>
+            <CardTitle className="text-lg text-gray-900 dark:text-white">Manutenções por Mês</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={maintenanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="month" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#0F6D2B" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#2A2A2A' : '#e5e7eb'} />
+                  <XAxis dataKey="month" stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} />
+                  <YAxis stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} />
+                  <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#141414' : 'white', border: `1px solid ${theme === 'dark' ? '#2A2A2A' : '#e5e7eb'}` }} />
+                  <Bar dataKey="count" fill="#F4B400" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
