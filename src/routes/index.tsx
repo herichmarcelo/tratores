@@ -20,19 +20,22 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/abastecimento" replace />;
   }
   return <>{children}</>;
 };
 
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   if (isAuthenticated) {
+    if (user?.role === 'collaborator') {
+      return <Navigate to="/abastecimento" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
@@ -58,9 +61,9 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
                 {withLayout(<Dashboard />)}
-              </ProtectedRoute>
+              </AdminRoute>
             }
           />
           <Route
@@ -90,9 +93,9 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/checklists"
             element={
-              <AdminRoute>
+              <ProtectedRoute>
                 {withLayout(<Checklists />)}
-              </AdminRoute>
+              </ProtectedRoute>
             }
           />
           <Route

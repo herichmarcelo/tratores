@@ -70,6 +70,9 @@ export interface Abastecimento {
   consumo_medio?: number;
   custo_hora?: number;
   observacoes?: string;
+  foto_comprovante?: string;
+  foto_painel?: string;
+  foto_bomba?: string;
   created_at: Date;
   trator?: Tractor;
   operador?: User;

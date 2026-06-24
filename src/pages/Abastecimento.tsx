@@ -1,412 +1,358 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Tractor,
+  Clock,
   Fuel,
   User,
-  Calendar,
-  Clock,
-  Camera,
-  FileText,
-  ChevronRight,
+  FlaskConical,
+  ArrowRight,
+  ChartLine,
+  SaveIcon,
+  AlertTriangle,
   DollarSign,
-  Save,
-  Gauge,
-  Home,
-  XCircle,
-  Tag,
-  Loader2,
-  Sun,
-  Moon,
-  MapPin,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import {
-  useAbastecimentos,
   useTratores,
-  useUsuarios,
-  useVwEficienciaTratores,
   useCreateAbastecimento,
+  useUpdateTrator,
 } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 import { TractorImage } from '../components/TractorImage';
-import { useTheme } from '../contexts/ThemeContext';
+import { AbastecimentoAdm } from './Abastecimento-adm';
 
 export const Abastecimento: React.FC = () => {
-  const { theme, setPreference } = useTheme();
-  const [initialHourmeter, setInitialHourmeter] = useState('5800');
-  const [finalHourmeter, setFinalHourmeter] = useState('5910');
-  const [liters, setLiters] = useState('120');
-  const [pricePerLiter, setPricePerLiter] = useState('5.89');
-  const [selectedTractor, setSelectedTractor] = useState('');
-  const [selectedOperator, setSelectedOperator] = useState('');
-  const [selectedFarm, setSelectedFarm] = useState('Matriz');
-  const [selectedSector, setSelectedSector] = useState('Lavouras Norte');
+  const { user } = useAuth();
+  const { data: tratores, isLoading: tratoresLoading } = useTratores();
+  const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
+  const { mutateAsync: updateTrator, isPending: isUpdating } = useUpdateTrator();
 
-  const toggleTheme = () => {
-    setPreference(theme === 'dark' ? 'light' : 'dark');
+  const [selectedTractorId, setSelectedTractorId] = useState('');
+  const [initialHour, setInitialHour] = useState('');
+  const [finalHour, setFinalHour] = useState('');
+  const [liters, setLiters] = useState('');
+  const [pricePerLiter] = useState('5.89');
+  const [isUploading, setIsUploading] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  const currentTractor = tratores?.find((t) => t.id === selectedTractorId);
+
+  // Calculations
+  const initialHourNum = parseFloat(initialHour) || 0;
+  const finalHourNum = parseFloat(finalHour) || 0;
+  const litersNum = parseFloat(liters) || 0;
+  const priceNum = parseFloat(pricePerLiter) || 5.89;
+
+  const hoursWorked = Math.max(0, finalHourNum - initialHourNum);
+  const consumption = hoursWorked > 0 ? (litersNum / hoursWorked) : 0;
+  const totalValue = litersNum * priceNum;
+  const tankCapacity = currentTractor?.capacidade_tanque || 300;
+  const exceedsTankCapacity = litersNum > tankCapacity;
+
+  // Initialize with first tractor
+  useEffect(() => {
+    if (tratores && tratores.length > 0 && !selectedTractorId) {
+      const firstTractor = tratores[0];
+      setSelectedTractorId(firstTractor.id);
+      setInitialHour(firstTractor.horimetro_atual ? String(firstTractor.horimetro_atual) : '');
+      setFinalHour(firstTractor.horimetro_atual ? String(firstTractor.horimetro_atual) : '');
+    }
+  }, [tratores]);
+
+  // Update when tractor changes
+  const handleTractorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedTractorId(id);
+    const tractor = tratores?.find(t => t.id === id);
+    if (tractor) {
+      setInitialHour(tractor.horimetro_atual ? String(tractor.horimetro_atual) : '');
+      setFinalHour(tractor.horimetro_atual ? String(tractor.horimetro_atual) : '');
+    }
+    setLiters('');
   };
 
-  const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
-  const { data: tratores, isLoading: tratoresLoading } = useTratores();
-  const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
-  const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
-  const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
+  // Show toast
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
-  // Garante que o trator selecionado exista, ou pega o primeiro da lista carregada
-  const currentTrator = tratores?.find((t) => t.id === selectedTractor) || tratores?.[0];
-  
-  // Se o select estiver vazio mas os tratores carregaram, seta o primeiro como default visualmente
-  const effectiveTractorId = selectedTractor || currentTrator?.id || '';
-
-  // Cálculos protegidos contra NaN (caso o usuário limpe o input)
-  const ini = parseFloat(initialHourmeter) || 0;
-  const fin = parseFloat(finalHourmeter) || 0;
-  const lit = parseFloat(liters) || 0;
-  const price = parseFloat(pricePerLiter) || 0;
-
-  const hoursWorked = Math.max(0, fin - ini);
-  const consumptionPerHour = hoursWorked > 0 ? (lit / hoursWorked).toFixed(2) : '0.00';
-  const totalValue = (lit * price).toFixed(2);
-  const costPerHour = hoursWorked > 0 ? ((lit * price) / hoursWorked).toFixed(2) : '0.00';
-
-  const eficienciaList = eficienciaTratores ?? [];
-  const averageEfficiency = eficienciaList.length > 0
-    ? Math.round(eficienciaList.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaList.length)
-    : 92;
-
-  const recentRefuels = abastecimentos?.slice(0, 4).map((ab) => ({
-    id: ab.id,
-    date: new Date(ab.data_abastecimento).toLocaleDateString('pt-BR'),
-    tractor: ab.trator?.patrimonio || 'Desconhecido',
-    liters: ab.litros_abastecidos || 0,
-    consumption: ab.consumo_medio ? `${ab.consumo_medio} L/h` : '0 L/h',
-  })) || [];
-
+  // Save function
   const handleSave = async () => {
-    if (!effectiveTractorId) return alert('Selecione um trator');
+    if (!selectedTractorId) {
+      showToast('⚠️ Selecione um trator', 'error');
+      return;
+    }
+
+    if (finalHourNum <= initialHourNum) {
+      showToast('⚠️ Horímetro final deve ser maior que o inicial', 'error');
+      return;
+    }
+
+    if (litersNum <= 0) {
+      showToast('⚠️ Digite a quantidade de litros abastecidos', 'error');
+      return;
+    }
+
+    if (exceedsTankCapacity) {
+      showToast(`⚠️ Capacidade máxima do tanque é ${tankCapacity}L. Você tentou abastecer ${litersNum}L!`, 'warning');
+      return;
+    }
+
     try {
+      setIsUploading(true);
+
       await createAbastecimento({
-        trator_id: effectiveTractorId,
-        operador_id: selectedOperator || undefined,
+        trator_id: selectedTractorId,
+        operador_id: user?.id,
         data_abastecimento: new Date(),
-        horimetro_inicial: ini,
-        horimetro_final: fin,
+        horimetro_inicial: initialHourNum,
+        horimetro_final: finalHourNum,
         horas_trabalhadas: hoursWorked,
-        litros_abastecidos: lit,
-        valor_litro: price,
-        valor_total: parseFloat(totalValue),
-        consumo_medio: parseFloat(consumptionPerHour),
-        custo_hora: parseFloat(costPerHour),
+        litros_abastecidos: litersNum,
+        valor_litro: priceNum,
+        valor_total: totalValue,
+        consumo_medio: consumption,
       });
-      alert('Abastecimento salvo com sucesso!');
+
+      await updateTrator({
+        id: selectedTractorId,
+        horimetro_atual: finalHourNum,
+      });
+
+      showToast(`✅ ${litersNum}L abastecidos em ${currentTractor?.patrimonio}`, 'success');
+      
+      // Reset form
+      setLiters('');
+      setFinalHour(String(finalHourNum));
+      setInitialHour(String(finalHourNum));
+      
     } catch (err) {
-      console.error('Erro ao salvar abastecimento:', err);
-      alert('Erro ao salvar abastecimento.');
+      console.error(err);
+      showToast('Erro ao salvar abastecimento', 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
+  // If user is not a collaborator, show admin/gestor UI
+  if (user?.role !== 'collaborator') {
+    return <AbastecimentoAdm />;
+  }
+
+  // Collaborator UI - following the template exactly
   return (
-    <div className="min-h-screen bg-background dark:bg-[#0A0A0A]">
-      {/* Page header (desktop) */}
-      <div className="hidden lg:block px-6 pt-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Fuel className="w-7 h-7 text-ff-yellow" />
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Abastecimento</h1>
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#0A0A0A] pb-[100px] pt-[env(safe-area-inset-top)]">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-5 left-1/2 -translate-x-1/2 -translate-y-full px-6 py-3 rounded-xl text-white text-sm font-medium shadow-lg z-50 transition-transform duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${toast.type === 'success' ? 'bg-[#16a34a]' : toast.type === 'error' ? 'bg-[#dc2626]' : 'bg-[#ca8a04]'} animate-[slideDown_0.4s_ease-out_forwards]`}>
+          {toast.message}
+        </div>
+      )}
+
+      <div className="max-w-[480px] mx-auto px-4 py-3">
+        {/* Header */}
+        <div className="flex items-center justify-between py-1 pb-3 sticky top-0 z-10 bg-[#f0f2f5] dark:bg-[#0A0A0A]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#facc15] to-[#f59e0b] rounded-xl flex items-center justify-center text-[#1a1a2e] text-lg shadow-lg">
+              <Fuel size={18} />
+            </div>
+            <h1 className="text-xl font-bold text-[#1a1a2e] dark:text-white">Abastecimento</h1>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="text-gray-600 dark:text-white border border-gray-200 dark:border-[#2A2A2A] rounded-lg"
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <span className="bg-[#22c55e] text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase flex items-center gap-1">
+              <User size={8} /> Colaborador
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-[#B3B3B3] mb-6">
-          <Home className="w-4 h-4" />
-          <span>Home</span>
-          <ChevronRight className="w-4 h-4" />
-          <span>Abastecimentos</span>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-gray-900 dark:text-white font-medium">Novo Abastecimento</span>
-        </div>
-      </div>
 
-      <div className="px-4 lg:px-6 pb-24 pt-4 lg:pt-0">
-        
-        {/* Card Resumo do Trator (Aparece no Mobile) */}
-        <div className="lg:hidden mb-4">
-          <Card className="border-none shadow-sm dark:bg-[#14141A]">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <TractorImage
-                  src={currentTrator?.imagem_url}
-                  alt={currentTrator?.modelo || 'Trator'}
-                  size="lg"
-                  bordered={false}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : currentTrator?.patrimonio || 'Selecione...'}
-                    </h2>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2 line-clamp-1">
-                    {tratoresLoading ? 'Carregando...' : `${currentTrator?.marca || ''} ${currentTrator?.modelo || ''}`}
-                  </p>
-                  <Badge className="bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30 text-xs">
-                    {currentTrator?.status || 'Ativo'}
-                  </Badge>
-                </div>
+        {/* Tractor Card */}
+        <div className="bg-white dark:bg-[#141414] rounded-2xl p-3.5 px-4 shadow-sm border border-[#f3f4f6] dark:border-[#262626] mb-3.5">
+          <div className="flex items-center gap-3">
+            <TractorImage
+              src={currentTractor?.imagem_url}
+              alt={`${currentTractor?.marca} ${currentTractor?.modelo}`}
+              size="md"
+              bordered={false}
+              className="w-12 h-12 shrink-0 rounded-xl overflow-hidden"
+            />
+            <div className="flex-1">
+              <label className="text-[11px] font-semibold text-[#6b7280] dark:text-[#9ca3af] uppercase tracking-wider mb-0.5 block flex items-center gap-1">
+                <Tractor size={10} /> Trator
+              </label>
+              <Select
+                value={selectedTractorId}
+                onChange={handleTractorChange}
+                disabled={tratoresLoading}
+                className="w-full border-none text-base font-semibold cursor-pointer outline-none appearance-none"
+                style={{
+                  backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath d=\'M1 1l5 5 5-5\' stroke=\'%236b7280\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right center',
+                  paddingRight: '32px',
+                }}
+              >
+                <option value="">Selecione...</option>
+                {tratores?.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.patrimonio} - {t.marca} {t.modelo} ({t.capacidade_tanque || '—'}L)
+                  </option>
+                ))}
+              </Select>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {/* Status Badge */}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  (currentTractor?.status || '').toLowerCase().includes('ativo')
+                    ? 'bg-[#dcfce7] text-[#16a34a]'
+                    : 'bg-[#fef9c3] text-[#ca8a04]'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    (currentTractor?.status || '').toLowerCase().includes('ativo')
+                      ? 'bg-[#22c55e]'
+                      : 'bg-[#f59e0b]'
+                  }`} />
+                  {(currentTractor?.status || 'Ativo') === 'ativo' ? 'Ativo' : 'Manutenção'}
+                </span>
+                {/* Tank Badge */}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#eff6ff] text-[#2563eb]">
+                  <Fuel size={10} /> Tanque: {tankCapacity} L
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-          
-          {/* COLUNA ESQUERDA: Formulário Unificado Responsivo */}
-          <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-4">
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-ff-yellow" /> Informações Gerais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><Calendar className="w-3.5 h-3.5"/> Data</label>
-                    <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Trator *</label>
-                    <Select
-                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
-                      value={effectiveTractorId}
-                      onChange={(e) => setSelectedTractor(e.target.value)}
-                      disabled={tratoresLoading}
-                    >
-                      <option value="">Selecione o trator...</option>
-                      {tratores?.map((t) => (
-                        <option key={t.id} value={t.id}>{t.patrimonio} - {t.marca}</option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><User className="w-3.5 h-3.5"/> Operador</label>
-                    <Select className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" value={selectedOperator} onChange={(e) => setSelectedOperator(e.target.value)} disabled={usuariosLoading}>
-                      <option value="">Selecione...</option>
-                      {usuarios?.map((u) => (
-                        <option key={u.id} value={u.id}>{u.nome}</option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><MapPin className="w-3.5 h-3.5"/> Fazenda</label>
-                    <Select className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" value={selectedFarm} onChange={(e) => setSelectedFarm(e.target.value)}>
-                      <option>Matriz</option>
-                      <option>Fazenda Santa Luzia</option>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Setor</label>
-                    <Select className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" value={selectedSector} onChange={(e) => setSelectedSector(e.target.value)}>
-                      <option>Lavouras Norte</option>
-                      <option>Lavouras Sul</option>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-4 flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-ff-yellow" /> Horímetro
-                </CardTitle>
-                <Button variant="ghost" size="sm" className="text-ff-yellow gap-1 p-0 h-auto hover:bg-transparent">
-                  <Camera className="w-4 h-4" /> <span className="hidden sm:inline">Ler Painel</span>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Inicial (h)</label>
-                    <Input
-                      type="number"
-                      value={initialHourmeter}
-                      onChange={(e) => setInitialHourmeter(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Final (h)</label>
-                    <Input
-                      type="number"
-                      value={finalHourmeter}
-                      onChange={(e) => setFinalHourmeter(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
-                    />
-                  </div>
-                </div>
-                <div className="p-3 bg-ff-green-active/10 rounded-lg border border-ff-green-active/30 w-full sm:w-fit flex items-center justify-between sm:justify-start sm:gap-6">
-                  <p className="text-sm text-ff-green-active font-medium">Horas Trabalhadas</p>
-                  <p className="text-2xl font-bold text-ff-green-active">{hoursWorked.toFixed(2)} h</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-4">
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Fuel className="w-5 h-5 text-ff-yellow" /> Dados do Abastecimento
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Litros (L)</label>
-                    <Input
-                      type="number" step="0.01" value={liters}
-                      onChange={(e) => setLiters(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Preço/Litro (R$)</label>
-                    <Input
-                      type="number" step="0.01" value={pricePerLiter}
-                      onChange={(e) => setPricePerLiter(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
-                    />
-                  </div>
-                  <div className="space-y-1.5 col-span-2 md:col-span-1">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Valor Total</label>
-                    <div className="flex items-center h-[42px] px-3 bg-gray-50 dark:bg-[#1A1A1A] rounded-md border border-gray-200 dark:border-[#2A2A2A]">
-                      <span className="text-gray-500 dark:text-[#B3B3B3] font-medium mr-2">R$</span>
-                      <span className="text-xl font-bold text-gray-900 dark:text-white">{totalValue}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cards de Métricas em Tempo Real */}
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <div className="p-3 rounded-xl border border-ff-green-active/30 bg-ff-green-active/10">
-                    <p className="text-[10px] sm:text-xs font-semibold text-ff-green-active uppercase mb-1 flex items-center gap-1"><Gauge className="w-3.5 h-3.5"/> Consumo Médio</p>
-                    <p className="text-xl sm:text-2xl font-bold text-ff-green-active">{consumptionPerHour} L/h</p>
-                  </div>
-                  <div className="p-3 rounded-xl border border-ff-yellow/30 bg-ff-yellow/10">
-                    <p className="text-[10px] sm:text-xs font-semibold text-ff-yellow uppercase mb-1 flex items-center gap-1"><DollarSign className="w-3.5 h-3.5"/> Custo por Hora</p>
-                    <p className="text-xl sm:text-2xl font-bold text-ff-yellow">R$ {costPerHour}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-4">
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Camera className="w-5 h-5 text-ff-yellow" /> Evidências Fotográficas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                  {['Comprovante', 'Painel', 'Bomba'].map((label) => (
-                    <button
-                      key={label}
-                      className="border-2 border-dashed border-gray-200 dark:border-[#2A2A2A] rounded-xl p-3 sm:p-6 flex flex-col items-center justify-center gap-2 hover:border-ff-yellow hover:bg-ff-yellow/5 transition-colors"
-                    >
-                      <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-[#B3B3B3]" />
-                      <span className="text-[10px] sm:text-xs text-gray-500 dark:text-[#B3B3B3] text-center font-medium leading-tight">
-                        {label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Botoes Desktop (Ficam ocultos no mobile pois o mobile tem a barra fixa) */}
-            <div className="hidden lg:flex items-center justify-end gap-3 pt-4">
-              <Button variant="outline" className="border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
-                <XCircle className="w-4 h-4 mr-2" /> Cancelar
-              </Button>
-              <Button onClick={handleSave} disabled={isCreating} className="bg-ff-yellow text-black hover:brightness-110 font-bold px-8">
-                {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                Salvar Abastecimento
-              </Button>
             </div>
           </div>
+        </div>
 
-          {/* COLUNA DIREITA: Sidebar de Resumo (Visível apenas em telas grandes) */}
-          <div className="hidden lg:block space-y-6">
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-3">
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Resumo Final</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: 'Horas Trabalhadas', value: `${hoursWorked.toFixed(2)} h`, icon: Clock },
-                  { label: 'Litros Abastecidos', value: `${lit} L`, icon: Fuel },
-                  { label: 'Consumo Médio', value: `${consumptionPerHour} L/h`, icon: Gauge, color: 'text-ff-green-active' },
-                  { label: 'Valor Total', value: `R$ ${totalValue}`, icon: DollarSign },
-                  { label: 'Custo por Hora', value: `R$ ${costPerHour}`, icon: DollarSign },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm py-1 border-b border-dashed border-gray-100 dark:border-[#2A2A2A] last:border-0">
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-[#B3B3B3]">
-                      <item.icon className="w-4 h-4" /> <span>{item.label}</span>
-                    </div>
-                    <span className={`font-bold text-gray-900 dark:text-white ${item.color || ''}`}>{item.value}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+        {/* Horimetro Card */}
+        <div className="bg-white dark:bg-[#141414] rounded-2xl shadow-sm border border-[#f3f4f6] dark:border-[#262626] mb-3.5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#f3f4f6] dark:border-[#262626] flex items-center gap-2.5 font-semibold text-sm text-[#1a1a2e] dark:text-white bg-[#fafafa] dark:bg-[#1A1A1A]">
+            <Clock className="w-4 h-4 text-[#facc15]" /> Horímetro
+          </div>
+          <div className="p-3.5 px-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-3 bg-[#f9fafb] dark:bg-[#1A1A1A] rounded-xl border border-[#e5e7eb] dark:border-[#262626]">
+                <label className="text-[10px] font-semibold text-[#6b7280] dark:text-[#9ca3af] uppercase tracking-wider mb-1 block">
+                  Inicial (h)
+                </label>
+                <div className="text-[22px] font-bold text-[#1a1a2e] dark:text-white">
+                  {initialHourNum.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                </div>
+              </div>
+              <div className="text-center p-3 bg-gradient-to-br from-[#dcfce7] to-[#bbf7d0] rounded-xl border border-[#86efac]">
+                <label className="text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider mb-1 block">
+                  Horas Trabalhadas
+                </label>
+                <div className="text-[22px] font-bold text-[#16a34a]">
+                  {hoursWorked.toFixed(2)} h
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="mb-0">
+                <label className="flex items-center gap-1 text-[11px] font-semibold uppercase text-[#6b7280] dark:text-[#9ca3af] mb-1.5 tracking-wider">
+                  <ArrowRight className="w-3 h-3 text-[#9ca3af]" /> Horímetro Final (h)
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9ca3af]" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={finalHour}
+                    onChange={(e) => setFinalHour(e.target.value)}
+                    placeholder={`Digite o horímetro final (atual: ${initialHourNum})`}
+                    className={`pl-10 pr-3.5 py-3 border-2 rounded-xl text-base font-semibold text-center ${
+                      finalHourNum < initialHourNum
+                        ? 'border-[#dc2626] shadow-[0_0_0_4px_rgba(220,38,38,0.12)]'
+                        : 'border-[#e5e7eb] dark:border-[#262626] bg-white dark:bg-[#171717] text-[#1a1a2e] dark:text-white'
+                    }`}
+                    style={{ textAlign: 'left' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">Últimos Registros</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-0">
-                {abastecimentosLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-ff-yellow animate-spin" /></div>
-                ) : recentRefuels.length > 0 ? (
-                  recentRefuels.map((refuel) => (
-                    <div key={refuel.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 dark:border-[#2A2A2A] last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{refuel.date}</p>
-                        <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">{refuel.tractor}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">{refuel.liters} L</p>
-                        <Badge className="bg-ff-green-active/10 text-ff-green-active border-none text-[10px] mt-0.5">{refuel.consumption}</Badge>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-[#B3B3B3] py-2">Nenhum registro encontrado</p>
-                )}
-              </CardContent>
-            </Card>
+        {/* Litros Abastecidos Card */}
+        <div className="bg-white dark:bg-[#141414] rounded-2xl shadow-sm border border-[#f3f4f6] dark:border-[#262626] mb-3.5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#f3f4f6] dark:border-[#262626] flex items-center gap-2.5 font-semibold text-sm text-[#1a1a2e] dark:text-white bg-[#fafafa] dark:bg-[#1A1A1A]">
+            <Fuel className="w-4 h-4 text-[#facc15]" /> Abastecimento
+          </div>
+          <div className="p-3.5 px-4">
+            <div className="mb-0">
+              <label className="flex items-center gap-1 text-[11px] font-semibold uppercase text-[#6b7280] dark:text-[#9ca3af] mb-1.5 tracking-wider">
+                <Fuel className="w-3 h-3 text-[#9ca3af]" /> Litros Abastecidos
+              </label>
+              <div className="relative">
+                <FlaskConical className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9ca3af]" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={liters}
+                  onChange={(e) => setLiters(e.target.value)}
+                  placeholder="0,00"
+                  className={`pl-10 pr-12 py-4 border-2 rounded-xl text-center text-2xl font-bold tracking-widest ${
+                    exceedsTankCapacity
+                      ? 'border-[#dc2626] shadow-[0_0_0_4px_rgba(220,38,38,0.12)] animate-shake'
+                      : 'border-[#e5e7eb] dark:border-[#262626] bg-white dark:bg-[#171717] text-[#1a1a2e] dark:text-white'
+                  }`}
+                  style={{ fontSize: '32px', fontWeight: 700 }}
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9ca3af] font-semibold text-sm">
+                  L
+                </span>
+              </div>
+              <div className="text-center text-xs text-[#9ca3af] mt-1">
+                Capacidade máxima do tanque: {tankCapacity} L
+              </div>
+              {exceedsTankCapacity && (
+                <div className="text-center text-xs text-[#dc2626] font-semibold mt-1 animate-slideDown">
+                  <AlertTriangle className="inline w-3 h-3 mr-1" />
+                  Atenção! Você está tentando abastecer além da capacidade do tanque ({tankCapacity} L)
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Result Card */}
+        <div className="bg-gradient-to-br from-[#fef9c3] to-[#fde047] rounded-2xl border border-[#fde047] mb-3.5">
+          <div className="p-4">
+            <div className="flex justify-between items-center">
+              <div className="flex-1">
+                <div className="text-[11px] font-semibold text-[#854d0e] uppercase tracking-wider flex items-center gap-1">
+                  <ChartLine className="w-3.5 h-3.5" /> Consumo Médio
+                </div>
+                <div className="text-2xl font-bold text-[#854d0e]">
+                  {consumption.toFixed(2)} L/h
+                </div>
+              </div>
+              <div className="flex-1 text-right">
+                <div className="text-[11px] font-semibold text-[#854d0e] uppercase tracking-wider flex items-center gap-1 justify-end">
+                  <DollarSign className="w-3.5 h-3.5" /> Total
+                </div>
+                <div className="text-2xl font-bold text-[#854d0e]">
+                  R$ {totalValue.toFixed(2)}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom navigation FIXED (Apenas Mobile) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#14141A] border-t border-gray-200 dark:border-[#2A2A2A] p-3 z-40 pb-safe">
+      {/* Save Bar */}
+      <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-[#14141A] border-t border-[#e5e7eb] dark:border-[#262626] px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <Button
           onClick={handleSave}
-          disabled={isCreating}
-          className="w-full h-14 text-base font-bold bg-ff-yellow text-black hover:brightness-110 shadow-lg"
+          disabled={isCreating || isUpdating || isUploading || exceedsTankCapacity}
+          className="w-full py-4 bg-gradient-to-br from-[#facc15] to-[#f59e0b] text-[#1a1a2e] border-none rounded-xl text-base font-bold flex items-center justify-center gap-2.5 shadow-lg hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isCreating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
+          {isCreating || isUpdating || isUploading ? (
+            <div className="inline-block w-5 h-5 border-2 border-[rgba(26,26,46,0.1)] border-t-[#1a1a2e] rounded-full animate-spin" />
+          ) : (
+            <SaveIcon className="w-5 h-5" />
+          )}
           SALVAR ABASTECIMENTO
         </Button>
       </div>

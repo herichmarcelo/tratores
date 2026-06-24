@@ -34,21 +34,20 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: Home, path: '/dashboard', roles: ['admin', 'collaborator'] },
+  { label: 'Dashboard', icon: Home, path: '/dashboard', roles: ['admin'] },
   { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
   { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
   { label: 'Manutenção', icon: Wrench, path: '/manutencao', roles: ['admin'] },
   { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['admin'] },
   { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['admin'] },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: 'Home', icon: Home, path: '/dashboard', roles: ['admin', 'collaborator'] },
+  { label: 'Home', icon: Home, path: '/dashboard', roles: ['admin'] },
   { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
   { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin'] },
-  { label: 'Perfil', icon: User, path: '/configuracoes', roles: ['admin'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
 ];
 
 const mobilePageTitles: { match: (path: string) => boolean; label: string; icon: React.ElementType }[] = [
@@ -231,7 +230,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       </main>
 
       {/* Bottom Navigation (Mobile) */}
-      {filteredBottomNavItems.length > 0 && (
+      {filteredBottomNavItems.length > 0 && user?.role !== 'collaborator' && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-[#262626] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
           <div className="flex items-stretch justify-around py-2">
             {filteredBottomNavItems.map((item) => {
