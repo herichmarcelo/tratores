@@ -52,6 +52,7 @@ import {
   useFazendas
 } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
+import { TopCostlyTractorsCard } from '../components/TopCostlyTractorsCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -586,8 +587,9 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
+      {/* Linha 1: Evolução dos Custos 100% */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">
               Evolução dos Custos
@@ -618,44 +620,46 @@ export const Dashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
+      </div>
 
+      {/* Linha 2: Consumo por Trator 100% */}
+      <div className="grid grid-cols-1 gap-6">
         <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">
-              Tratores que Mais Custam
+              Consumo por Trator (L/h)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 pb-2">
             {isLoading ? (
               <div className="h-64 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
               </div>
             ) : (
-              <div className="space-y-3">
-                {tratoresMaisCaros.map((trator, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className="w-6 h-6 rounded-full bg-yellow-400/20 flex items-center justify-center text-xs font-bold text-yellow-600 dark:text-yellow-400">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                          {trator.patrimonio}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-[#B3B3B3]">
-                          Custo total: R$ {(trator.custo_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height={256}>
+                <BarChart
+                  data={consumoPorTrator}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#2A2A2A' : '#e5e7eb'} horizontal={true} />
+                  <XAxis type="number" stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 12 }} />
+                  <YAxis dataKey="patrimonio" type="category" width={60} stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(value: number) => [`${value.toFixed(1)} L/h`, '']} />
+                  <Bar dataKey="consumo" fill="#FFC107" radius={[0, 4, 4, 0]} barSize={24} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Linha 3: Tratores que Mais Custam 100% */}
+      <div className="grid grid-cols-1 gap-6">
+        <TopCostlyTractorsCard />
+      </div>
+
+      {/* Linha 4: 4 cards, 25% each */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="pb-0">
             <CardTitle className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -724,106 +728,75 @@ export const Dashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">
-              Consumo por Trator (L/h)
+              Custos de Manutenção
             </CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-2">
             {isLoading ? (
-              <div className="h-64 flex items-center justify-center">
+              <div className="h-48 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={256}>
-                <BarChart
-                  data={consumoPorTrator}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#2A2A2A' : '#e5e7eb'} horizontal={true} />
-                  <XAxis type="number" stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 12 }} />
-                  <YAxis dataKey="patrimonio" type="category" width={60} stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number) => [`${value.toFixed(1)} L/h`, '']} />
-                  <Bar dataKey="consumo" fill="#FFC107" radius={[0, 4, 4, 0]} barSize={24} />
-                </BarChart>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={custosManutencaoPorTipo}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={60}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {custosManutencaoPorTipo.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
-
-        <div className="space-y-6">
-          <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-gray-900 dark:text-white">
-                Custos de Manutenção
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-2">
-              {isLoading ? (
-                <div className="h-48 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={custosManutencaoPorTipo}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={60}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {custosManutencaoPorTipo.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
-                <SaveIcon className="w-4 h-4" /> Projeção de Gastos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-800 dark:text-yellow-200">Combustível</span>
-                <span className="font-bold text-yellow-900 dark:text-yellow-100">
-                  R$ {projecaoGastos.combustivel.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-800 dark:text-yellow-200">Manutenção</span>
-                <span className="font-bold text-yellow-900 dark:text-yellow-100">
-                  R$ {projecaoGastos.manutencao.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="h-px bg-yellow-200 dark:bg-yellow-700/30 my-2" />
-              <div className="flex items-center justify-between">
-                <span className="text-yellow-800 dark:text-yellow-200 font-semibold">Total Previsto</span>
-                <span className="font-bold text-yellow-900 dark:text-yellow-100 text-lg">
-                  R$ {projecaoGastos.total.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
+      {/* Linha 5: 3 cards, 33% each */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-900/10 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+              <SaveIcon className="w-4 h-4" /> Projeção de Gastos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-yellow-800 dark:text-yellow-200">Combustível</span>
+              <span className="font-bold text-yellow-900 dark:text-yellow-100">
+                R$ {projecaoGastos.combustivel.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-yellow-800 dark:text-yellow-200">Manutenção</span>
+              <span className="font-bold text-yellow-900 dark:text-yellow-100">
+                R$ {projecaoGastos.manutencao.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="h-px bg-yellow-200 dark:bg-yellow-700/30 my-2" />
+            <div className="flex items-center justify-between">
+              <span className="text-yellow-800 dark:text-yellow-200 font-semibold">Total Previsto</span>
+              <span className="font-bold text-yellow-900 dark:text-yellow-100 text-lg">
+                R$ {projecaoGastos.total.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-yellow-500" /> Alertas Financeiros

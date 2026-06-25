@@ -120,11 +120,11 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       >
         <div className="p-6 border-b border-green-700 dark:border-[#262626]">
           <div className="flex items-center gap-3">
-            <Leaf className="w-10 h-10 text-yellow-400 dark:text-[#FFC107]" />
-            <div>
-              <h1 className="font-bold text-yellow-300 dark:text-[#FFC107] text-xl">PLUMA</h1>
-              <p className="text-xs text-green-200 dark:text-gray-400">AGROAVÍCOLA</p>
-            </div>
+            <img
+              src={theme === 'dark' ? '/ff-black.png' : '/ff-white.png'}
+              alt="Logo"
+              className="h-10 w-auto"
+            />
           </div>
         </div>
 
