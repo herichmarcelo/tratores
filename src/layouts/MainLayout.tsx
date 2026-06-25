@@ -6,18 +6,14 @@ import {
   Tractor,
   Fuel,
   ClipboardList,
-  Truck,
   Wrench,
   FileText,
   Settings,
   LogOut,
   Menu,
-  X,
   Home,
   Search,
   Bell,
-  Leaf,
-  User,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -48,15 +44,6 @@ const bottomNavItems: NavItem[] = [
   { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
   { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
   { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
-];
-
-const mobilePageTitles: { match: (path: string) => boolean; label: string; icon: React.ElementType }[] = [
-  { match: (p) => p.startsWith('/tratores'), label: 'Tratores', icon: Tractor },
-  { match: (p) => p.startsWith('/abastecimento'), label: 'Abastecimentos', icon: Fuel },
-  { match: (p) => p.startsWith('/checklists'), label: 'Checklists', icon: ClipboardList },
-  { match: (p) => p.startsWith('/configuracoes'), label: 'Perfil', icon: User },
-  { match: (p) => p.startsWith('/dashboard'), label: 'Dashboard', icon: Home },
-  { match: (p) => p.startsWith('/relatorios'), label: 'Relatórios', icon: FileText },
 ];
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {

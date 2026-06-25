@@ -46,7 +46,7 @@ body {
   animation: slideDown 0.3s ease-out;
 }
 
-.animate-[slideDown_0.4s_ease-out_forwards] {
+.animate-slideDownToast {
   animation: slideDownToast 0.4s ease-out forwards;
 }
 

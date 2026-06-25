@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Select } from '../components/ui/select';
 import {
   Tractor,
   Fuel,
@@ -10,17 +9,13 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
-  Gauge,
   AlertTriangle,
   Calendar,
   Building2,
-  BarChart3,
-  Activity,
   SaveIcon,
   Filter,
   Loader2,
   CheckCircle2,
-  XCircle,
   Clock
 } from 'lucide-react';
 import {
@@ -36,19 +31,12 @@ import {
   Cell,
   PieChart,
   Pie,
-  Legend,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
+  Legend
 } from 'recharts';
 import {
   useTratores,
   useAbastecimentos,
   useManutencoes,
-  useVwEficienciaTratores,
-  useVwCustosFrota,
   useFazendas
 } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
@@ -61,13 +49,10 @@ export const Dashboard: React.FC = () => {
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: manutencoes, isLoading: manutencoesLoading } = useManutencoes();
-  const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
-  const { data: custosFrota, isLoading: custosFrotaLoading } = useVwCustosFrota();
-  const { data: fazendas, isLoading: fazendasLoading } = useFazendas();
+  const { data: fazendas } = useFazendas();
 
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
@@ -178,13 +163,6 @@ export const Dashboard: React.FC = () => {
     }
     return months;
   }, [abastecimentos, manutencoes]);
-
-  const tratoresMaisCaros = useMemo(() => {
-    if (!custosFrota) return [];
-    return [...custosFrota]
-      .sort((a, b) => (b.custo_total || 0) - (a.custo_total || 0))
-      .slice(0, 10);
-  }, [custosFrota]);
 
   const custosPorFazenda = useMemo(() => {
     const fazendaMap = new Map<string, { nome: string; total: number; combustivel: number; manutencao: number }>();
@@ -394,7 +372,7 @@ export const Dashboard: React.FC = () => {
     );
   };
 
-  const isLoading = tratoresLoading || abastecimentosLoading || manutencoesLoading || eficienciaLoading || custosFrotaLoading;
+  const isLoading = tratoresLoading || abastecimentosLoading || manutencoesLoading;
 
   return (
     <div className="p-4 md:p-6 space-y-6 bg-gray-50 dark:bg-[#0D0D0D] min-h-screen">
@@ -609,7 +587,7 @@ export const Dashboard: React.FC = () => {
                     `R$ ${(value / 1000).toFixed(0)}k`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: theme === 'dark' ? '#1A1A1A' : 'white', border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
+                    formatter={(value: any) => [`R$ ${(Number(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
                   <Line type="monotone" dataKey="combustivel" name="Combustível" stroke="#FFC107" strokeWidth={3} dot={{ r: 4, fill: '#FFC107' }} />
@@ -644,7 +622,7 @@ export const Dashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#2A2A2A' : '#e5e7eb'} horizontal={true} />
                   <XAxis type="number" stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 12 }} />
                   <YAxis dataKey="patrimonio" type="category" width={60} stroke={theme === 'dark' ? '#B3B3B3' : '#6b7280'} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number) => [`${value.toFixed(1)} L/h`, '']} />
+                  <Tooltip formatter={(value: any) => [`${(Number(value) || 0).toFixed(1)} L/h`, '']} />
                   <Bar dataKey="consumo" fill="#FFC107" radius={[0, 4, 4, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
@@ -713,16 +691,16 @@ export const Dashboard: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     outerRadius={60}
                     fill="#8884d8"
                     dataKey="total"
                   >
-                    {custosPorFazenda.map((entry, index) => (
+                    {custosPorFazenda.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
+                  <Tooltip formatter={(value: any) => [`R$ ${(Number(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -748,16 +726,16 @@ export const Dashboard: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     outerRadius={60}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {custosManutencaoPorTipo.map((entry, index) => (
+                    {custosManutencaoPorTipo.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
+                  <Tooltip formatter={(value: any) => [`R$ ${(Number(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`, '']} />
                 </PieChart>
               </ResponsiveContainer>
             )}

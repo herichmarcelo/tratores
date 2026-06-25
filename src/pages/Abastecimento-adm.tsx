@@ -12,7 +12,6 @@ import {
   Gauge,
   Home,
   XCircle,
-  Tag,
   Loader2,
   Sun,
   Moon,
@@ -27,7 +26,6 @@ import {
   useAbastecimentos,
   useTratores,
   useUsuarios,
-  useVwEficienciaTratores,
   useCreateAbastecimento,
 } from '../hooks';
 import { TractorImage } from '../components/TractorImage';
@@ -51,7 +49,6 @@ export const AbastecimentoAdm: React.FC = () => {
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
   const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
-  const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
   const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
 
   // Garante que o trator selecionado exista, ou pega o primeiro da lista carregada
@@ -70,11 +67,6 @@ export const AbastecimentoAdm: React.FC = () => {
   const consumptionPerHour = hoursWorked > 0 ? (lit / hoursWorked).toFixed(2) : '0.00';
   const totalValue = (lit * price).toFixed(2);
   const costPerHour = hoursWorked > 0 ? ((lit * price) / hoursWorked).toFixed(2) : '0.00';
-
-  const eficienciaList = eficienciaTratores ?? [];
-  const averageEfficiency = eficienciaList.length > 0
-    ? Math.round(eficienciaList.reduce((acc, e) => acc + (e.eficiencia_percentual || 0), 0) / eficienciaList.length)
-    : 92;
 
   const recentRefuels = abastecimentos?.slice(0, 4).map((ab) => ({
     id: ab.id,
