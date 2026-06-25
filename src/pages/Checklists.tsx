@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   User,
   Calendar,
@@ -18,7 +18,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
 
-const checklistItems = [
+// Types for checklist items and saved checklists
+type ChecklistItemStatus = 'conforme' | 'atencao' | 'reprovado';
+
+interface ChecklistItem {
+  id: number;
+  name: string;
+  status: ChecklistItemStatus;
+}
+
+interface SavedChecklist {
+  id: number;
+  tractorId: string;
+  tractorModel: string;
+  operatorName: string;
+  date: string;
+  period: string;
+  hourmeter: number;
+  items: ChecklistItem[];
+  conformityIndex: number;
+  status: 'APROVADO' | 'REPROVADO';
+}
+
+// Initial checklist items
+const initialChecklistItems: ChecklistItem[] = [
   { id: 1, name: 'Óleo do Motor', status: 'conforme' },
   { id: 2, name: 'Radiador', status: 'conforme' },
   { id: 3, name: 'Combustível', status: 'conforme' },
@@ -31,12 +54,115 @@ const checklistItems = [
   { id: 10, name: 'Emergência Geral', status: 'conforme' },
 ];
 
+// Mock saved checklists
+const initialSavedChecklists: SavedChecklist[] = [
+  {
+    id: 1,
+    tractorId: 'TR-001',
+    tractorModel: 'John Deere 6110J',
+    operatorName: 'João da Silva',
+    date: '18/05/2026',
+    period: 'Manhã',
+    hourmeter: 5823,
+    items: initialChecklistItems,
+    conformityIndex: 90,
+    status: 'APROVADO',
+  },
+  {
+    id: 2,
+    tractorId: 'TR-002',
+    tractorModel: 'Massey Ferguson 4292',
+    operatorName: 'Maria Souza',
+    date: '18/05/2026',
+    period: 'Manhã',
+    hourmeter: 7245,
+    items: initialChecklistItems,
+    conformityIndex: 100,
+    status: 'APROVADO',
+  },
+];
+
 export const Checklists: React.FC = () => {
   const { theme, setPreference } = useTheme();
   const [activeTab, setActiveTab] = useState('list');
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(initialChecklistItems);
+  const [savedChecklists, setSavedChecklists] = useState<SavedChecklist[]>(initialSavedChecklists);
 
   const toggleTheme = () => {
     setPreference(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  // Update checklist item status
+  const updateItemStatus = (itemId: number, newStatus: ChecklistItemStatus) => {
+    setChecklistItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, status: newStatus } : item
+      )
+    );
+  };
+
+  // Calculate conformity index and item counts
+  const calculateStats = () => {
+    const conformeCount = checklistItems.filter(item => item.status === 'conforme').length;
+    const atencaoCount = checklistItems.filter(item => item.status === 'atencao').length;
+    const reprovadoCount = checklistItems.filter(item => item.status === 'reprovado').length;
+    const conformityIndex = Math.round((conformeCount / checklistItems.length) * 100);
+    
+    // Determine overall status
+    let checklistStatus: 'APROVADO' | 'REPROVADO' = 'APROVADO';
+    if (reprovadoCount > 0 || conformityIndex < 80) {
+      checklistStatus = 'REPROVADO';
+    } else if (atencaoCount > 0 && conformityIndex >= 80 && conformityIndex < 100) {
+      checklistStatus = 'APROVADO'; // Still approved but with warnings
+    }
+
+    return {
+      conformeCount,
+      atencaoCount,
+      reprovadoCount,
+      conformityIndex,
+      checklistStatus,
+    };
+  };
+
+  const stats = useMemo(() => calculateStats(), [checklistItems]);
+
+  // Handle save checklist
+  const handleSaveChecklist = async () => {
+    const newChecklist: SavedChecklist = {
+      id: Date.now(),
+      tractorId: 'TR-001',
+      tractorModel: 'John Deere 6110J',
+      operatorName: 'João da Silva',
+      date: new Date().toLocaleDateString('pt-BR'),
+      period: new Date().getHours() < 12 ? 'Manhã' : new Date().getHours() < 18 ? 'Tarde' : 'Noite',
+      hourmeter: 5823,
+      conformityIndex: stats.conformityIndex,
+      items: checklistItems,
+      status: stats.checklistStatus,
+    };
+
+    // For integration with backend, uncomment this part:
+    // try {
+    //   const response = await fetch('/api/checklists', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify(newChecklist),
+    //   });
+    //   const savedData = await response.json();
+    //   setSavedChecklists([savedData, ...savedChecklists]);
+    // } catch (error) {
+    //   console.error('Error saving checklist:', error);
+    // }
+
+    // Add to saved checklists (mock)
+    setSavedChecklists([newChecklist, ...savedChecklists]);
+    
+    // Reset checklist
+    setChecklistItems(initialChecklistItems);
+    
+    // Switch to history tab
+    setActiveTab('list');
   };
 
   return (
@@ -88,67 +214,40 @@ export const Checklists: React.FC = () => {
       <div className="px-4 lg:px-6 pb-6">
         {activeTab === 'list' ? (
           <div className="space-y-4">
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                    <img
-                      src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                      alt="Trator"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">TR-001</h3>
-                      <Badge className="bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30">APROVADO</Badge>
+            {savedChecklists.map((checklist) => (
+              <Card key={checklist.id} className="border-none shadow-sm dark:bg-[#14141A]">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                      <img
+                        src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
+                        alt="Trator"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2">John Deere 6110J</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-[#B3B3B3]">
-                      <Calendar className="w-3 h-3" />
-                      <span>18/05/2026</span>
-                      <Clock className="w-3 h-3 ml-2" />
-                      <span>Manhã</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.tractorId}</h3>
+                        <Badge className={checklist.status === 'APROVADO' ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' : 'bg-red-100 text-red-600 border-red-200'}>
+                          {checklist.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2">{checklist.tractorModel}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-[#B3B3B3]">
+                        <Calendar className="w-3 h-3" />
+                        <span>{checklist.date}</span>
+                        <Clock className="w-3 h-3 ml-2" />
+                        <span>{checklist.period}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Horímetro</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">5.823 h</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-sm dark:bg-[#14141A]">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                    <img
-                      src="https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100&h=100&fit=crop"
-                      alt="Trator"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">TR-002</h3>
-                      <Badge className="bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30">APROVADO</Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2">Massey Ferguson 4292</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-[#B3B3B3]">
-                      <Calendar className="w-3 h-3" />
-                      <span>18/05/2026</span>
-                      <Clock className="w-3 h-3 ml-2" />
-                      <span>Manhã</span>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Horímetro</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white">{checklist.hourmeter.toLocaleString('pt-BR')} h</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Horímetro</p>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">7.245 h</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
@@ -214,21 +313,24 @@ export const Checklists: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <div className="flex gap-1">
                             <button
-                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                              onClick={() => updateItemStatus(item.id, 'conforme')}
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                                 item.status === 'conforme' ? 'border-ff-green-active bg-ff-green-active' : 'border-gray-300 dark:border-[#2A2A2A] hover:border-ff-green-active'
                               }`}
                             >
                               {item.status === 'conforme' && <CheckCircle2 className="w-3 h-3 text-white" />}
                             </button>
                             <button
-                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                              onClick={() => updateItemStatus(item.id, 'atencao')}
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                                 item.status === 'atencao' ? 'border-ff-warning bg-ff-warning' : 'border-gray-300 dark:border-[#2A2A2A] hover:border-ff-warning'
                               }`}
                             >
                               {item.status === 'atencao' && <AlertTriangle className="w-3 h-3 text-white" />}
                             </button>
                             <button
-                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                              onClick={() => updateItemStatus(item.id, 'reprovado')}
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${
                                 item.status === 'reprovado' ? 'border-ff-danger bg-ff-danger' : 'border-gray-300 dark:border-[#2A2A2A] hover:border-ff-danger'
                               }`}
                             >
@@ -274,7 +376,7 @@ export const Checklists: React.FC = () => {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <button className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex flex-col items-center justify-center gap-2 hover:border-ff-yellow hover:bg-ff-yellow/10 transition-colors">
+                    <button className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex flex-col items-center justify-center gap-2 hover:border-ff-yellow hover:bg-ff-yellow/10 transition-colors cursor-pointer">
                       <Camera className="w-6 h-6 text-gray-400 dark:text-[#B3B3B3] hover:text-ff-yellow" />
                       <span className="text-xs text-gray-500 dark:text-[#B3B3B3] hover:text-ff-yellow">Adicionar Foto</span>
                     </button>
@@ -301,18 +403,20 @@ export const Checklists: React.FC = () => {
                         <path
                           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
-                          stroke="#3EC300"
+                          stroke={stats.checklistStatus === 'APROVADO' ? '#3EC300' : '#DC2626'}
                           strokeWidth="3"
-                          strokeDasharray="95, 100"
+                          strokeDasharray={`${stats.conformityIndex}, 100`}
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-3xl font-bold text-ff-yellow">95%</span>
+                        <span className="text-3xl font-bold text-ff-yellow">{stats.conformityIndex}%</span>
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Índice de Conformidade</p>
-                    <Badge className="bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30 text-base px-3 py-1 font-semibold">
-                      APROVADO
+                    <Badge className={stats.checklistStatus === 'APROVADO' 
+                      ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' 
+                      : 'bg-red-100 text-red-600 border-red-200'} text-base px-3 py-1 font-semibold>
+                      {stats.checklistStatus}
                     </Badge>
                   </div>
 
@@ -322,33 +426,35 @@ export const Checklists: React.FC = () => {
                         <CheckCircle2 className="w-4 h-4 text-ff-green-active" />
                         Itens Conforme
                       </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">9</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{stats.conformeCount}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600 dark:text-[#B3B3B3] flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-ff-warning" />
                         Itens Atenção
                       </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">1</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{stats.atencaoCount}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600 dark:text-[#B3B3B3] flex items-center gap-2">
                         <XCircle className="w-4 h-4 text-ff-danger" />
                         Itens Reprovados
                       </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">0</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{stats.reprovadoCount}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600 dark:text-[#B3B3B3]">Total de Itens</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">10</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{checklistItems.length}</span>
                     </div>
                   </div>
 
                   <div className="pt-2 border-t border-gray-100 dark:border-[#2A2A2A]">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">Situação do Trator</span>
-                      <Badge className="bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30 font-semibold">
-                        APTO PARA OPERAÇÃO
+                      <Badge className={stats.checklistStatus === 'APROVADO' 
+                        ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' 
+                        : 'bg-red-100 text-red-600 border-red-200'} font-semibold>
+                        {stats.checklistStatus === 'APROVADO' ? 'APTO PARA OPERAÇÃO' : 'NÃO APTO'}
                       </Badge>
                     </div>
                   </div>
@@ -369,7 +475,7 @@ export const Checklists: React.FC = () => {
                 <Button variant="outline" className="flex-1 border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
                   Cancelar
                 </Button>
-                <Button className="flex-1 bg-ff-yellow text-black hover:brightness-110">
+                <Button onClick={handleSaveChecklist} className="flex-1 bg-ff-yellow text-black hover:brightness-110">
                   Salvar Checklist
                 </Button>
               </div>
