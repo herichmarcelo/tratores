@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Select } from './ui/select';
 import { useTratores, useAbastecimentos, useManutencoes } from '../hooks';
-import { useTheme } from '../contexts/ThemeContext';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 interface TractorCostData {
@@ -16,7 +14,6 @@ interface TractorCostData {
 }
 
 export const TopCostlyTractorsCard: React.FC = () => {
-  const { theme } = useTheme();
   const { data: tratores, isLoading: tratoresLoading, error: tratoresError } = useTratores();
   const { data: abastecimentos, isLoading: abastecimentosLoading, error: abastecimentosError } = useAbastecimentos();
   const { data: manutencoes, isLoading: manutencoesLoading, error: manutencoesError } = useManutencoes();
