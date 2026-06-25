@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   User,
   Calendar,
@@ -12,36 +12,27 @@ import {
   FileText,
   Sun,
   Moon,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTratores, useChecklists, useCreateChecklist, useUsuarios } from '../hooks';
+import type { Tractor, User as UserType } from '../types';
 
-// Types for checklist items and saved checklists
+// Types for checklist items
 type ChecklistItemStatus = 'conforme' | 'atencao' | 'reprovado';
 
-interface ChecklistItem {
+interface LocalChecklistItem {
   id: number;
   name: string;
   status: ChecklistItemStatus;
 }
 
-interface SavedChecklist {
-  id: number;
-  tractorId: string;
-  tractorModel: string;
-  operatorName: string;
-  date: string;
-  period: string;
-  hourmeter: number;
-  items: ChecklistItem[];
-  conformityIndex: number;
-  status: 'APROVADO' | 'REPROVADO';
-}
-
-// Initial checklist items
-const initialChecklistItems: ChecklistItem[] = [
+// Initial checklist items (can be kept as default)
+const initialChecklistItems: LocalChecklistItem[] = [
   { id: 1, name: 'Óleo do Motor', status: 'conforme' },
   { id: 2, name: 'Radiador', status: 'conforme' },
   { id: 3, name: 'Combustível', status: 'conforme' },
@@ -54,39 +45,39 @@ const initialChecklistItems: ChecklistItem[] = [
   { id: 10, name: 'Emergência Geral', status: 'conforme' },
 ];
 
-// Mock saved checklists
-const initialSavedChecklists: SavedChecklist[] = [
-  {
-    id: 1,
-    tractorId: 'TR-001',
-    tractorModel: 'John Deere 6110J',
-    operatorName: 'João da Silva',
-    date: '18/05/2026',
-    period: 'Manhã',
-    hourmeter: 5823,
-    items: initialChecklistItems,
-    conformityIndex: 90,
-    status: 'APROVADO',
-  },
-  {
-    id: 2,
-    tractorId: 'TR-002',
-    tractorModel: 'Massey Ferguson 4292',
-    operatorName: 'Maria Souza',
-    date: '18/05/2026',
-    period: 'Manhã',
-    hourmeter: 7245,
-    items: initialChecklistItems,
-    conformityIndex: 100,
-    status: 'APROVADO',
-  },
-];
-
 export const Checklists: React.FC = () => {
   const { theme, setPreference } = useTheme();
   const [activeTab, setActiveTab] = useState('list');
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(initialChecklistItems);
-  const [savedChecklists, setSavedChecklists] = useState<SavedChecklist[]>(initialSavedChecklists);
+  const [checklistItems, setChecklistItems] = useState<LocalChecklistItem[]>(initialChecklistItems);
+  const [selectedTrator, setSelectedTrator] = useState<Tractor | null>(null);
+  const [showTratorDropdown, setShowTratorDropdown] = useState(false);
+  const [selectedOperador, setSelectedOperador] = useState<UserType | null>(null);
+  const [showOperadorDropdown, setShowOperadorDropdown] = useState(false);
+
+  const { data: tratores, isLoading: tratoresLoading } = useTratores();
+  const { data: checklists, isLoading: checklistsLoading, refetch: refetchChecklists } = useChecklists();
+  const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
+  const createChecklist = useCreateChecklist();
+
+  // Filter only active tractors
+  const activeTratores = useMemo(() => {
+    return tratores?.filter(t => t.status === 'ativo') || [];
+  }, [tratores]);
+
+  // Set default trator when loaded
+  useEffect(() => {
+    if (activeTratores.length > 0 && !selectedTrator) {
+      setSelectedTrator(activeTratores[0]);
+    }
+  }, [activeTratores]);
+
+  // Set default operador when loaded
+  useEffect(() => {
+    if (usuarios && usuarios.length > 0 && !selectedOperador) {
+      const operador = usuarios.find(u => u.perfil === 'colaborador') || usuarios[0];
+      setSelectedOperador(operador);
+    }
+  }, [usuarios]);
 
   const toggleTheme = () => {
     setPreference(theme === 'dark' ? 'light' : 'dark');
@@ -109,11 +100,9 @@ export const Checklists: React.FC = () => {
     const conformityIndex = Math.round((conformeCount / checklistItems.length) * 100);
     
     // Determine overall status
-    let checklistStatus: 'APROVADO' | 'REPROVADO' = 'APROVADO';
+    let checklistStatus = 'Aprovado';
     if (reprovadoCount > 0 || conformityIndex < 80) {
-      checklistStatus = 'REPROVADO';
-    } else if (atencaoCount > 0 && conformityIndex >= 80 && conformityIndex < 100) {
-      checklistStatus = 'APROVADO'; // Still approved but with warnings
+      checklistStatus = 'Reprovado';
     }
 
     return {
@@ -129,40 +118,37 @@ export const Checklists: React.FC = () => {
 
   // Handle save checklist
   const handleSaveChecklist = async () => {
-    const newChecklist: SavedChecklist = {
-      id: Date.now(),
-      tractorId: 'TR-001',
-      tractorModel: 'John Deere 6110J',
-      operatorName: 'João da Silva',
-      date: new Date().toLocaleDateString('pt-BR'),
-      period: new Date().getHours() < 12 ? 'Manhã' : new Date().getHours() < 18 ? 'Tarde' : 'Noite',
-      hourmeter: 5823,
-      conformityIndex: stats.conformityIndex,
-      items: checklistItems,
-      status: stats.checklistStatus,
-    };
+    if (!selectedTrator) {
+      alert('Por favor, selecione um trator');
+      return;
+    }
 
-    // For integration with backend, uncomment this part:
-    // try {
-    //   const response = await fetch('/api/checklists', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(newChecklist),
-    //   });
-    //   const savedData = await response.json();
-    //   setSavedChecklists([savedData, ...savedChecklists]);
-    // } catch (error) {
-    //   console.error('Error saving checklist:', error);
-    // }
+    const now = new Date();
+    const score = stats.conformityIndex;
+    const status = stats.checklistStatus;
 
-    // Add to saved checklists (mock)
-    setSavedChecklists([newChecklist, ...savedChecklists]);
-    
-    // Reset checklist
-    setChecklistItems(initialChecklistItems);
-    
-    // Switch to history tab
-    setActiveTab('list');
+    try {
+      await createChecklist.mutateAsync({
+        trator_id: selectedTrator.id,
+        operador_id: selectedOperador?.id,
+        data_checklist: now,
+        score: score,
+        status: status,
+        observacoes: 'Checklist criado via app',
+        assinatura: selectedOperador?.nome || '',
+      });
+
+      // Reset checklist
+      setChecklistItems(initialChecklistItems);
+      // Switch to history tab
+      setActiveTab('list');
+      // Refetch checklists to update history
+      await refetchChecklists();
+      alert('Checklist salvo com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar checklist:', error);
+      alert('Erro ao salvar checklist. Por favor, tente novamente.');
+    }
   };
 
   return (
@@ -214,40 +200,69 @@ export const Checklists: React.FC = () => {
       <div className="px-4 lg:px-6 pb-6">
         {activeTab === 'list' ? (
           <div className="space-y-4">
-            {savedChecklists.map((checklist) => (
-              <Card key={checklist.id} className="border-none shadow-sm dark:bg-[#14141A]">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                      <img
-                        src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                        alt="Trator"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{checklist.tractorId}</h3>
-                        <Badge className={checklist.status === 'APROVADO' ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' : 'bg-red-100 text-red-600 border-red-200'}>
-                          {checklist.status}
-                        </Badge>
+            {checklistsLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 text-ff-yellow animate-spin" />
+              </div>
+            ) : (
+              checklists?.map((checklist) => (
+                <Card key={checklist.id} className="border-none shadow-sm dark:bg-[#14141A]">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                        {checklist.trator?.imagem_url ? (
+                          <img
+                            src={checklist.trator.imagem_url}
+                            alt={checklist.trator.patrimonio}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
+                            alt="Trator"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2">{checklist.tractorModel}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-[#B3B3B3]">
-                        <Calendar className="w-3 h-3" />
-                        <span>{checklist.date}</span>
-                        <Clock className="w-3 h-3 ml-2" />
-                        <span>{checklist.period}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                            {checklist.trator?.patrimonio || 'Trator'}
+                          </h3>
+                          <Badge className={checklist.status === 'Aprovado' 
+                            ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' 
+                            : 'bg-red-100 text-red-600 border-red-200'}
+                          >
+                            {checklist.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2">
+                          {checklist.trator?.marca} {checklist.trator?.modelo}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-[#B3B3B3]">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {new Date(checklist.data_checklist).toLocaleDateString('pt-BR')}
+                          </span>
+                          <Clock className="w-3 h-3 ml-2" />
+                          <span>
+                            {new Date(checklist.data_checklist).toLocaleTimeString('pt-BR', { 
+                              hour: '2-digit', minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Horímetro</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                          {checklist.trator?.horimetro_atual?.toLocaleString('pt-BR') || 0} h
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Horímetro</p>
-                      <p className="text-lg font-bold text-gray-900 dark:text-white">{checklist.hourmeter.toLocaleString('pt-BR')} h</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
@@ -257,37 +272,185 @@ export const Checklists: React.FC = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
                     <div>
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-[#B3B3B3] uppercase mb-3">Informações do Trator</h3>
-                      <div className="flex items-center gap-4">
-                        <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                          <img
-                            src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                            alt="Trator"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-lg font-bold text-gray-900 dark:text-white">TR-001</h4>
-                          <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">John Deere 6110J</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">5.823 h</Badge>
-                            <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">Fazenda Matriz</Badge>
-                            <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">Setor Lavoura Norte</Badge>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowTratorDropdown(!showTratorDropdown)}
+                          className="w-full flex items-center gap-3 p-3 border border-gray-200 dark:border-[#2A2A2A] rounded-lg bg-white dark:bg-[#1A1A1A] text-left hover:border-ff-yellow transition-colors"
+                        >
+                          {tratoresLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-ff-yellow" />
+                          ) : selectedTrator ? (
+                            <>
+                              <div className="w-12 h-12 rounded overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                                {selectedTrator.imagem_url ? (
+                                  <img
+                                    src={selectedTrator.imagem_url}
+                                    alt={selectedTrator.patrimonio}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <img
+                                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
+                                    alt="Trator"
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="text-base font-bold text-gray-900 dark:text-white">
+                                  {selectedTrator.patrimonio}
+                                </h4>
+                                <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">
+                                  {selectedTrator.marca} {selectedTrator.modelo}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex-1 text-center">
+                              <h4 className="text-base font-medium text-gray-500 dark:text-[#B3B3B3]">
+                                Selecione um trator
+                              </h4>
+                            </div>
+                          )}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showTratorDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showTratorDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#14141A] border border-gray-200 dark:border-[#2A2A2A] rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                            {activeTratores.map((trator) => (
+                              <button
+                                key={trator.id}
+                                onClick={() => {
+                                  setSelectedTrator(trator);
+                                  setShowTratorDropdown(false);
+                                }}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-left transition-colors"
+                              >
+                                <div className="w-10 h-10 rounded overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                                  {trator.imagem_url ? (
+                                    <img
+                                      src={trator.imagem_url}
+                                      alt={trator.patrimonio}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <img
+                                      src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
+                                      alt="Trator"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {trator.patrimonio}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-[#B3B3B3]">
+                                    {trator.marca} {trator.modelo}
+                                  </p>
+                                </div>
+                                {selectedTrator?.id === trator.id && (
+                                  <CheckCircle2 className="w-5 h-5 text-ff-green-active" />
+                                )}
+                              </button>
+                            ))}
                           </div>
-                        </div>
+                        )}
                       </div>
+                      
+                      {selectedTrator && (
+                        <div className="flex items-center gap-3 mt-3">
+                          <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">
+                            {selectedTrator.horimetro_atual?.toLocaleString('pt-BR')} h
+                          </Badge>
+                          <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">
+                            {selectedTrator.fazenda?.nome || 'Fazenda'}
+                          </Badge>
+                          <Badge className="bg-gray-100 dark:bg-[#1A1A1A] text-gray-700 dark:text-[#B3B3B3] border-gray-200 dark:border-[#2A2A2A]">
+                            {selectedTrator.setor || 'Setor'}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
+                    
                     <div>
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-[#B3B3B3] uppercase mb-3">Informações do Operador</h3>
-                      <div className="flex items-center gap-3">
-                        <User className="w-6 h-6 text-gray-400 dark:text-[#B3B3B3]" />
-                        <div>
-                          <h4 className="text-base font-semibold text-gray-900 dark:text-white">João da Silva</h4>
-                          <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">Operador</p>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-[#B3B3B3]">
-                            <Clock className="w-3 h-3" />
-                            <span>Manhã</span>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowOperadorDropdown(!showOperadorDropdown)}
+                          className="w-full flex items-center gap-3 p-3 border border-gray-200 dark:border-[#2A2A2A] rounded-lg bg-white dark:bg-[#1A1A1A] text-left hover:border-ff-yellow transition-colors"
+                        >
+                          {usuariosLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-ff-yellow" />
+                          ) : selectedOperador ? (
+                            <>
+                              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                                {selectedOperador.foto_url ? (
+                                  <img
+                                    src={selectedOperador.foto_url}
+                                    alt={selectedOperador.nome}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <User className="w-6 h-6 text-gray-400 dark:text-[#B3B3B3]" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                                  {selectedOperador.nome}
+                                </h4>
+                                <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">
+                                  {selectedOperador.cargo}
+                                </p>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex-1 text-center">
+                              <h4 className="text-base font-medium text-gray-500 dark:text-[#B3B3B3]">
+                                Selecione um operador
+                              </h4>
+                            </div>
+                          )}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showOperadorDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showOperadorDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#14141A] border border-gray-200 dark:border-[#2A2A2A] rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                            {usuarios?.map((user) => (
+                              <button
+                                key={user.id}
+                                onClick={() => {
+                                  setSelectedOperador(user);
+                                  setShowOperadorDropdown(false);
+                                }}
+                                className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-left transition-colors"
+                              >
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                                  {user.foto_url ? (
+                                    <img
+                                      src={user.foto_url}
+                                      alt={user.nome}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <User className="w-5 h-5 text-gray-400 dark:text-[#B3B3B3]" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {user.nome}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-[#B3B3B3]">
+                                    {user.cargo}
+                                  </p>
+                                </div>
+                                {selectedOperador?.id === user.id && (
+                                  <CheckCircle2 className="w-5 h-5 text-ff-green-active" />
+                                )}
+                              </button>
+                            ))}
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -403,7 +566,7 @@ export const Checklists: React.FC = () => {
                         <path
                           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                           fill="none"
-                          stroke={stats.checklistStatus === 'APROVADO' ? '#3EC300' : '#DC2626'}
+                          stroke={stats.checklistStatus === 'Aprovado' ? '#3EC300' : '#DC2626'}
                           strokeWidth="3"
                           strokeDasharray={`${stats.conformityIndex}, 100`}
                         />
@@ -413,7 +576,7 @@ export const Checklists: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">Índice de Conformidade</p>
-                    <Badge className={stats.checklistStatus === 'APROVADO' 
+                    <Badge className={stats.checklistStatus === 'Aprovado' 
                       ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' 
                       : 'bg-red-100 text-red-600 border-red-200'} text-base px-3 py-1 font-semibold>
                       {stats.checklistStatus}
@@ -451,10 +614,10 @@ export const Checklists: React.FC = () => {
                   <div className="pt-2 border-t border-gray-100 dark:border-[#2A2A2A]">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">Situação do Trator</span>
-                      <Badge className={stats.checklistStatus === 'APROVADO' 
+                      <Badge className={stats.checklistStatus === 'Aprovado' 
                         ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' 
                         : 'bg-red-100 text-red-600 border-red-200'} font-semibold>
-                        {stats.checklistStatus === 'APROVADO' ? 'APTO PARA OPERAÇÃO' : 'NÃO APTO'}
+                        {stats.checklistStatus === 'Aprovado' ? 'Apto para Operação' : 'Não Apto'}
                       </Badge>
                     </div>
                   </div>
@@ -462,7 +625,9 @@ export const Checklists: React.FC = () => {
                   <div className="pt-2 border-t border-gray-100 dark:border-[#2A2A2A]">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Assinatura do Operador</p>
                     <div className="border border-gray-200 dark:border-[#2A2A2A] rounded-lg p-4 bg-gray-50 dark:bg-[#1A1A1A]">
-                      <p className="text-center text-gray-400 dark:text-[#B3B3B3] italic">João da Silva</p>
+                      <p className="text-center text-gray-400 dark:text-[#B3B3B3] italic">
+                        {selectedOperador?.nome || 'Selecione um operador'}
+                      </p>
                     </div>
                     <Button variant="ghost" size="sm" className="text-ff-yellow w-full mt-2">
                       Limpar
@@ -475,8 +640,15 @@ export const Checklists: React.FC = () => {
                 <Button variant="outline" className="flex-1 border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveChecklist} className="flex-1 bg-ff-yellow text-black hover:brightness-110">
-                  Salvar Checklist
+                <Button 
+                  onClick={handleSaveChecklist} 
+                  disabled={createChecklist.isPending || !selectedTrator}
+                  className="flex-1 bg-ff-yellow text-black hover:brightness-110 disabled:opacity-50"
+                >
+                  {createChecklist.isPending ? (
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  ) : null}
+                  {createChecklist.isPending ? 'Salvando...' : 'Salvar Checklist'}
                 </Button>
               </div>
             </div>

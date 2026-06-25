@@ -343,3 +343,21 @@ export const useCreateAbastecimento = () => {
     },
   })
 }
+
+export const useCreateChecklist = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (checklist: Omit<Checklist, 'id' | 'created_at'>) => {
+      const { data, error } = await supabase
+        .from('checklists')
+        .insert(checklist)
+        .select('*, trator:tratores(*), operador:usuarios(*)')
+        .single()
+      if (error) throw error
+      return data as Checklist
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['checklists'] })
+    },
+  })
+}
