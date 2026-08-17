@@ -2,24 +2,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import { hashPassword } from '../utils/password'
 import { mapPerfilToFuncao, mapUsuarioRow, type UsuarioRow } from '../utils/usuario'
+import { useFazendaScope } from './useFazendaScope'
+import { cacheTratores, getCachedTratores } from '../services/offline/cache'
+import { isBrowserOnline } from '../utils/network'
 import type { Tractor, Abastecimento, Checklist, Manutencao, Pneu, Fazenda, Setor, User, VwEficienciaTratores, VwConsumoFrota, VwCustosFrota, VwChecklistsPendentes, VwManutencoesAbertas } from '../types'
 
 // Tratores
 export const useTratores = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['tratores'],
+    queryKey: ['tratores', scopedFazendaId ?? 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!isBrowserOnline()) {
+        const cached = await getCachedTratores(scopedFazendaId)
+        if (cached) return cached
+      }
+
+      let query = supabase
         .from('tratores')
         .select('*, fazenda:fazendas(*)')
         .order('patrimonio')
+      if (scopedFazendaId) {
+        query = query.eq('fazenda_id', scopedFazendaId)
+      }
+      const { data, error } = await query
       if (error) {
         if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
           return [] as Tractor[]
         }
+        const cached = await getCachedTratores(scopedFazendaId)
+        if (cached) return cached
         throw error
       }
-      return data as Tractor[]
+      const rows = data as Tractor[]
+      await cacheTratores(rows, scopedFazendaId)
+      return rows
     },
   })
 }
@@ -42,45 +59,54 @@ export const useTrator = (id: string) => {
 
 // Abastecimentos
 export const useAbastecimentos = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['abastecimentos'],
+    queryKey: ['abastecimentos', scopedFazendaId ?? 'all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('abastecimentos')
         .select('*, trator:tratores(*), operador:usuarios(*)')
         .order('data_abastecimento', { ascending: false })
       if (error) throw error
-      return data as Abastecimento[]
+      const rows = data as Abastecimento[]
+      if (!scopedFazendaId) return rows
+      return rows.filter((a) => a.trator?.fazenda_id === scopedFazendaId)
     },
   })
 }
 
 // Checklists
 export const useChecklists = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['checklists'],
+    queryKey: ['checklists', scopedFazendaId ?? 'all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('checklists')
         .select('*, trator:tratores(*), operador:usuarios(*)')
         .order('data_checklist', { ascending: false })
       if (error) throw error
-      return data as Checklist[]
+      const rows = data as Checklist[]
+      if (!scopedFazendaId) return rows
+      return rows.filter((c) => c.trator?.fazenda_id === scopedFazendaId)
     },
   })
 }
 
 // Manutenções
 export const useManutencoes = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['manutencoes'],
+    queryKey: ['manutencoes', scopedFazendaId ?? 'all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('manutencoes')
         .select('*, trator:tratores(*)')
         .order('data_manutencao', { ascending: false })
       if (error) throw error
-      return data as Manutencao[]
+      const rows = data as Manutencao[]
+      if (!scopedFazendaId) return rows
+      return rows.filter((m) => m.trator?.fazenda_id === scopedFazendaId)
     },
   })
 }
@@ -102,13 +128,15 @@ export const usePneus = () => {
 
 // Fazendas
 export const useFazendas = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['fazendas'],
+    queryKey: ['fazendas', scopedFazendaId ?? 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('fazendas')
-        .select('*')
-        .order('nome')
+      let query = supabase.from('fazendas').select('*').order('nome')
+      if (scopedFazendaId) {
+        query = query.eq('id', scopedFazendaId)
+      }
+      const { data, error } = await query
       if (error) {
         if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
           return [] as Fazenda[]
@@ -127,7 +155,7 @@ export const useUsuarios = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
+        .select('id, nome_completo, email, funcao, foto_url, ativo, fazenda_id, created_at')
         .order('nome_completo')
       if (error) throw error
       return (data as UsuarioRow[]).map(mapUsuarioRow)
@@ -137,13 +165,15 @@ export const useUsuarios = () => {
 
 // Setores
 export const useSetores = () => {
+  const { scopedFazendaId } = useFazendaScope()
   return useQuery({
-    queryKey: ['setores'],
+    queryKey: ['setores', scopedFazendaId ?? 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('setores')
-        .select('*, fazenda:fazendas(*)')
-        .order('nome')
+      let query = supabase.from('setores').select('*, fazenda:fazendas(*)').order('nome')
+      if (scopedFazendaId) {
+        query = query.eq('fazenda_id', scopedFazendaId)
+      }
+      const { data, error } = await query
       if (error) {
         if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
           return [] as Setor[]
@@ -167,11 +197,12 @@ export const useCreateUsuario = () => {
         funcao: mapPerfilToFuncao(input.perfil),
         foto_url: input.foto_url || null,
         ativo: input.ativo ?? true,
+        fazenda_id: input.fazenda_id || null,
       }
       const { data, error } = await supabase
         .from('usuarios')
         .insert(payload)
-        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
+        .select('id, nome_completo, email, funcao, foto_url, ativo, fazenda_id, created_at')
         .single()
       if (error) throw error
       return mapUsuarioRow(data as UsuarioRow)
@@ -192,12 +223,13 @@ export const useUpdateUsuario = () => {
       if (updates.foto_url !== undefined) payload.foto_url = updates.foto_url
       if (updates.ativo !== undefined) payload.ativo = updates.ativo
       if (updates.perfil) payload.funcao = mapPerfilToFuncao(updates.perfil)
+      if (updates.fazenda_id !== undefined) payload.fazenda_id = updates.fazenda_id || null
       if (senha) payload.senha = await hashPassword(senha)
       const { data, error } = await supabase
         .from('usuarios')
         .update(payload)
         .eq('id', id)
-        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
+        .select('id, nome_completo, email, funcao, foto_url, ativo, fazenda_id, created_at')
         .single()
       if (error) throw error
       return mapUsuarioRow(data as UsuarioRow)
@@ -384,3 +416,26 @@ export const useCreateChecklist = () => {
     },
   })
 }
+
+export {
+  useTanques,
+  useCreateTank,
+  useRegisterFuelPurchase,
+  useFuelTractor,
+} from './tanques'
+export type { TanqueFilters } from './tanques'
+
+export {
+  useRegisterManutencaoPreventiva,
+  useCreateManutencao,
+  useUpdateTratorManutencaoConfig,
+} from './manutencao'
+export type { RegisterManutencaoPreventivaInput, CreateManutencaoInput } from './manutencao'
+
+export { useManutencaoAlerts } from './useManutencaoAlerts'
+export { useFazendaScope } from './useFazendaScope'
+export { useOnlineStatus } from './useOnlineStatus'
+export { useOfflineSync } from './useOfflineSync'
+export { useInstallPrompt } from './useInstallPrompt'
+export { useOfflineFuelTractor, useOfflineCreateChecklist } from './useOfflineMutations'
+export type { OfflineSaveResult } from './useOfflineMutations'

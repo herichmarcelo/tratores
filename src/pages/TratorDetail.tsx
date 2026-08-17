@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   DollarSign,
   Sun,
   Moon,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   LineChart,
@@ -29,6 +30,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { TractorImage } from '../components/TractorImage';
+import { getAlertaManutencaoBanner } from '../utils/manutencaoAlerts';
 import {
   useTrator,
   useAbastecimentos,
@@ -36,7 +38,10 @@ import {
   useManutencoes,
   useVwEficienciaTratores,
 } from '../hooks';
+import { useFazendaScope } from '../hooks/useFazendaScope';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatHorasManutencao } from '../utils/manutencao';
+import { buildAlertaManutencao } from '../utils/manutencaoAlerts';
 
 const getStatusColor = (status: string, isDark: boolean) => {
   const lower = status.toLowerCase();
@@ -64,14 +69,23 @@ export const TratorDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { theme, setPreference } = useTheme();
+  const { belongsToScope } = useFazendaScope();
   const [activeTab, setActiveTab] = useState<DetailTab>('abastecimento');
   const isDark = theme === 'dark';
 
   const { data: trator, isLoading: tratorLoading, isError } = useTrator(id ?? '');
+
+  useEffect(() => {
+    if (trator && !belongsToScope(trator.fazenda_id)) {
+      navigate('/tratores', { replace: true });
+    }
+  }, [trator, belongsToScope, navigate]);
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: checklists, isLoading: checklistsLoading } = useChecklists();
   const { data: manutencoes, isLoading: manutencoesLoading } = useManutencoes();
   const { data: eficienciaTratores, isLoading: eficienciaLoading } = useVwEficienciaTratores();
+
+  const maintenanceStatus = trator ? buildAlertaManutencao(trator) : null;
 
   const abastecimentosTrator = useMemo(
     () => abastecimentos?.filter((a) => a.trator_id === id) ?? [],
@@ -223,6 +237,55 @@ export const TratorDetail: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+
+        {(() => {
+          const banner = getAlertaManutencaoBanner(trator);
+          if (!banner) return null;
+          return (
+            <div className={`p-4 rounded-lg border mb-4 ${banner.bgClass}`}>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className={`w-5 h-5 shrink-0 ${banner.textClass}`} />
+                <div className="flex-1">
+                  <p className={`font-semibold text-sm ${banner.textClass}`}>{banner.mensagem}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    O trator continua operando normalmente. Registre a manutenção no menu Manutenção.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {maintenanceStatus && maintenanceStatus.nivel !== 'verde' && trator.alerta_manutencao_ativo !== false && (
+          <Card className="border-none shadow-sm dark:bg-[#14141A]">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase text-gray-500 dark:text-[#B3B3B3] mb-1">Manutenção Preventiva</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {maintenanceStatus.horas_restantes <= 0
+                      ? `Vencida há ${Math.abs(maintenanceStatus.horas_restantes).toFixed(0)} h`
+                      : `${maintenanceStatus.horas_restantes.toFixed(0)} h restantes`}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-[#B3B3B3] mt-1">
+                    Próxima em: {formatHorasManutencao(maintenanceStatus.proxima_manutencao)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-2xl font-bold ${
+                    maintenanceStatus.nivel === 'vermelho' ? 'text-ff-danger'
+                      : maintenanceStatus.nivel === 'laranja' ? 'text-orange-400'
+                        : maintenanceStatus.nivel === 'amarelo' ? 'text-ff-warning'
+                          : 'text-ff-green-active'
+                  }`}>
+                    {maintenanceStatus.percentual_uso.toFixed(0)}%
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">do intervalo</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Abas */}
         <div className="overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0">

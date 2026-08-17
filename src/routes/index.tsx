@@ -9,34 +9,17 @@ import { Abastecimento } from '../pages/Abastecimento';
 import { Checklists } from '../pages/Checklists';
 import Relatorios from '../pages/Relatorios';
 import { Configuracoes } from '../pages/Configuracoes';
+import { CompraCombustivel } from '../pages/CompraCombustivel';
+import { Manutencao } from '../pages/Manutencao';
 import { MainLayout } from '../layouts/MainLayout';
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-  return <>{children}</>;
-};
-
-const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-  if (!isAdmin) {
-    return <Navigate to="/abastecimento" replace />;
-  }
-  return <>{children}</>;
-};
+import { ProtectedRoute, RoleRoute, AdministradorRoute, GestaoRoute } from './RoleRoutes';
+import { OfflineStatus } from '../pages/OfflineStatus';
+import { getDefaultPathForPerfil } from '../utils/permissions';
 
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
-  if (isAuthenticated) {
-    if (user?.role === 'collaborator') {
-      return <Navigate to="/abastecimento" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated && user) {
+    return <Navigate to={getDefaultPathForPerfil(user.perfil)} replace />;
   }
   return <>{children}</>;
 };
@@ -61,9 +44,9 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/dashboard"
             element={
-              <AdminRoute>
+              <GestaoRoute>
                 {withLayout(<Dashboard />)}
-              </AdminRoute>
+              </GestaoRoute>
             }
           />
           <Route
@@ -77,50 +60,70 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/tratores/:id"
             element={
-              <AdminRoute>
+              <GestaoRoute>
                 {withLayout(<TratorDetail />)}
-              </AdminRoute>
+              </GestaoRoute>
             }
           />
           <Route
             path="/tratores"
             element={
-              <AdminRoute>
+              <GestaoRoute>
                 {withLayout(<Tratores />)}
-              </AdminRoute>
+              </GestaoRoute>
             }
           />
           <Route
             path="/checklists"
             element={
-              <ProtectedRoute>
+              <RoleRoute path="/checklists">
                 {withLayout(<Checklists />)}
-              </ProtectedRoute>
+              </RoleRoute>
             }
           />
           <Route
             path="/relatorios"
             element={
-              <AdminRoute>
+              <GestaoRoute>
                 {withLayout(<Relatorios />)}
-              </AdminRoute>
+              </GestaoRoute>
+            }
+          />
+          <Route
+            path="/compra-combustivel"
+            element={
+              <GestaoRoute>
+                {withLayout(<CompraCombustivel />)}
+              </GestaoRoute>
             }
           />
           <Route
             path="/configuracoes"
             element={
-              <AdminRoute>
+              <AdministradorRoute>
                 {withLayout(<Configuracoes />)}
-              </AdminRoute>
+              </AdministradorRoute>
             }
           />
           <Route path="/usuarios" element={<Navigate to="/configuracoes" replace />} />
-          <Route path="/pneus" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/manutencao" element={<Navigate to="/dashboard" replace />} />
           <Route
-            path="*"
-            element={<Navigate to="/" replace />}
+            path="/manutencao"
+            element={
+              <GestaoRoute>
+                {withLayout(<Manutencao />)}
+              </GestaoRoute>
+            }
           />
+          <Route
+            path="/offline"
+            element={
+              <ProtectedRoute>
+                {withLayout(<OfflineStatus />)}
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/pneus" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

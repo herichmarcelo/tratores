@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -16,7 +17,8 @@ import {
   Filter,
   Loader2,
   CheckCircle2,
-  Clock
+  Clock,
+  Download,
 } from 'lucide-react';
 import {
   LineChart,
@@ -41,6 +43,9 @@ import {
 } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { TopCostlyTractorsCard } from '../components/TopCostlyTractorsCard';
+import { useManutencaoAlerts } from '../hooks';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import { getNivelBadgeClasses } from '../utils/manutencaoAlerts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -50,6 +55,8 @@ export const Dashboard: React.FC = () => {
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: manutencoes, isLoading: manutencoesLoading } = useManutencoes();
   const { data: fazendas } = useFazendas();
+  const { alertasCriticos, isLoading: alertasManutLoading } = useManutencaoAlerts();
+  const { installPrompt, install, isInstalled } = useInstallPrompt();
 
   const today = new Date();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -299,6 +306,19 @@ export const Dashboard: React.FC = () => {
       });
     }
 
+    const alertasManutencaoCriticos = alertasCriticos.slice(0, 4);
+    if (alertasManutencaoCriticos.length > 0) {
+      alertasManutencaoCriticos.forEach((a, i) => {
+        alerts.push({
+          id: 100 + i,
+          type: a.nivel === 'vermelho' ? 'danger' : 'warning',
+          message: `${a.patrimonio}: ${a.horas_restantes <= 0 ? `Vencida há ${Math.abs(a.horas_restantes).toFixed(0)}h` : `Faltam ${a.horas_restantes.toFixed(0)}h`}`,
+          icon: Wrench,
+          link: '/manutencao',
+        });
+      });
+    }
+
     if (alerts.length === 0) {
       alerts.push({
         id: 5,
@@ -309,7 +329,7 @@ export const Dashboard: React.FC = () => {
     }
 
     return alerts;
-  }, [consumoMedioFrota, tratores, abastecimentos, custoPorHora, filteredManutencoes]);
+  }, [consumoMedioFrota, tratores, abastecimentos, custoPorHora, filteredManutencoes, alertasCriticos]);
 
   const disponibilidadeFrota = useMemo(() => {
     const totalTratores = tratores?.length || 0;
@@ -383,6 +403,16 @@ export const Dashboard: React.FC = () => {
             Visão geral dos custos e desempenho da frota
           </p>
         </div>
+        {installPrompt && !isInstalled && (
+          <Button
+            type="button"
+            className="bg-ff-yellow text-black hover:brightness-110 shrink-0"
+            onClick={() => void install()}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Instalar App
+          </Button>
+        )}
       </div>
 
       <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
@@ -811,6 +841,53 @@ export const Dashboard: React.FC = () => {
                 );
               })}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-ff-yellow" /> Manutenção Preventiva
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {alertasManutLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-6 h-6 animate-spin text-ff-yellow" />
+              </div>
+            ) : alertasCriticos.length === 0 ? (
+              <p className="text-sm text-ff-green-active font-medium py-2">✅ Todos os tratores em dia</p>
+            ) : (
+              <div className="space-y-3">
+                {alertasCriticos.slice(0, 4).map((alerta) => (
+                  <div
+                    key={alerta.trator_id}
+                    className={`p-3 rounded-lg border flex items-start gap-3 ${
+                      alerta.nivel === 'vermelho'
+                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                        : 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
+                    }`}
+                  >
+                    <Wrench className={`w-4 h-4 shrink-0 mt-0.5 ${
+                      alerta.nivel === 'vermelho' ? 'text-red-500' : 'text-orange-400'
+                    }`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{alerta.patrimonio}</p>
+                      <p className={`text-xs mt-0.5 ${getNivelBadgeClasses(alerta.nivel).split(' ')[1]}`}>
+                        {alerta.horas_restantes <= 0
+                          ? `Vencida há ${Math.abs(alerta.horas_restantes).toFixed(0)}h`
+                          : `Faltam ${alerta.horas_restantes.toFixed(0)}h`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Link to="/manutencao">
+              <Button variant="outline" className="w-full mt-4 border-gray-200 dark:border-[#2A2A2A] text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
+                Ver Manutenção
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 

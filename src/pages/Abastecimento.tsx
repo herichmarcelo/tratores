@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Tractor,
   Clock,
@@ -10,46 +10,75 @@ import {
   SaveIcon,
   AlertTriangle,
   DollarSign,
+  CloudOff,
+  Droplets,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import {
   useTratores,
-  useCreateAbastecimento,
-  useUpdateTrator,
+  useTanques,
+  useOfflineFuelTractor,
+  useOfflineSync,
+  useOnlineStatus,
 } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { TractorImage } from '../components/TractorImage';
 import { AbastecimentoAdm } from './Abastecimento-adm';
+import { getAlertaManutencaoBanner } from '../utils/manutencaoAlerts';
+import { formatCmp, formatLiters } from '../utils/cmp';
 
 export const Abastecimento: React.FC = () => {
-  const { user } = useAuth();
+  const { user, canAccessGestao } = useAuth();
+  const isOnline = useOnlineStatus();
+  const { pendingCount } = useOfflineSync();
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
-  const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
-  const { mutateAsync: updateTrator, isPending: isUpdating } = useUpdateTrator();
+  const { mutateAsync: fuelTractor, isPending: isSaving } = useOfflineFuelTractor();
 
   const [selectedTractorId, setSelectedTractorId] = useState('');
+  const [selectedTankId, setSelectedTankId] = useState('');
   const [initialHour, setInitialHour] = useState('');
   const [finalHour, setFinalHour] = useState('');
   const [liters, setLiters] = useState('');
-  const [pricePerLiter] = useState('5.89');
   const [isUploading, setIsUploading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
   const currentTractor = tratores?.find((t) => t.id === selectedTractorId);
 
-  // Calculations
+  const { data: tanquesRaw } = useTanques({
+    fazenda_id: currentTractor?.fazenda_id || undefined,
+  });
+
+  const tanquesDisponiveis = useMemo(() => {
+    if (!tanquesRaw) return [];
+    if (!currentTractor?.setor) return tanquesRaw;
+    const filtrados = tanquesRaw.filter(
+      (t) => !t.setor || t.setor.nome === currentTractor.setor,
+    );
+    return filtrados.length > 0 ? filtrados : tanquesRaw;
+  }, [tanquesRaw, currentTractor]);
+
+  const selectedTank = tanquesDisponiveis.find((t) => t.id === selectedTankId);
+
   const initialHourNum = parseFloat(initialHour) || 0;
   const finalHourNum = parseFloat(finalHour) || 0;
   const litersNum = parseFloat(liters) || 0;
-  const priceNum = parseFloat(pricePerLiter) || 5.89;
+  const cmpAtual = selectedTank?.custo_medio_atual ?? 0;
 
   const hoursWorked = Math.max(0, finalHourNum - initialHourNum);
   const consumption = hoursWorked > 0 ? (litersNum / hoursWorked) : 0;
-  const totalValue = litersNum * priceNum;
+  const totalValue = litersNum * cmpAtual;
   const tankCapacity = currentTractor?.capacidade_tanque || 300;
+  const saldoTanque = selectedTank?.saldo_atual ?? 0;
   const exceedsTankCapacity = litersNum > tankCapacity;
+  const exceedsTankSaldo = selectedTank ? litersNum > saldoTanque : false;
+  const cannotSave = exceedsTankCapacity || exceedsTankSaldo || !selectedTankId || litersNum <= 0;
+
+  const alertaManutencao = useMemo(
+    () => getAlertaManutencaoBanner(currentTractor),
+    [currentTractor],
+  );
 
   // Initialize with first tractor
   useEffect(() => {
@@ -71,7 +100,14 @@ export const Abastecimento: React.FC = () => {
       setFinalHour(tractor.horimetro_atual ? String(tractor.horimetro_atual) : '');
     }
     setLiters('');
+    setSelectedTankId('');
   };
+
+  useEffect(() => {
+    if (tanquesDisponiveis.length === 1) {
+      setSelectedTankId(tanquesDisponiveis[0].id);
+    }
+  }, [tanquesDisponiveis]);
 
   // Show toast
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -97,32 +133,38 @@ export const Abastecimento: React.FC = () => {
     }
 
     if (exceedsTankCapacity) {
-      showToast(`⚠️ Capacidade máxima do tanque é ${tankCapacity}L. Você tentou abastecer ${litersNum}L!`, 'warning');
+      showToast(`⚠️ Capacidade máxima do tanque do trator é ${tankCapacity}L`, 'warning');
+      return;
+    }
+
+    if (!selectedTankId) {
+      showToast('⚠️ Selecione o tanque de origem', 'error');
+      return;
+    }
+
+    if (exceedsTankSaldo) {
+      showToast(`⚠️ Saldo insuficiente no tanque (${formatLiters(saldoTanque)} disponíveis)`, 'warning');
       return;
     }
 
     try {
       setIsUploading(true);
 
-      await createAbastecimento({
+      const result = await fuelTractor({
+        tanque_id: selectedTankId,
         trator_id: selectedTractorId,
         operador_id: user?.id,
-        data_abastecimento: new Date(),
+        litros: litersNum,
         horimetro_inicial: initialHourNum,
         horimetro_final: finalHourNum,
-        horas_trabalhadas: hoursWorked,
-        litros_abastecidos: litersNum,
-        valor_litro: priceNum,
-        valor_total: totalValue,
-        consumo_medio: consumption,
+        data_abastecimento: new Date(),
       });
 
-      await updateTrator({
-        id: selectedTractorId,
-        horimetro_atual: finalHourNum,
-      });
-
-      showToast(`✅ ${litersNum}L abastecidos em ${currentTractor?.patrimonio}`, 'success');
+      if (result.mode === 'offline') {
+        showToast('Salvo offline, sincronizará quando houver internet', 'warning');
+      } else {
+        showToast(`✅ ${litersNum}L abastecidos em ${currentTractor?.patrimonio}`, 'success');
+      }
       
       // Reset form
       setLiters('');
@@ -131,18 +173,19 @@ export const Abastecimento: React.FC = () => {
       
     } catch (err) {
       console.error(err);
-      showToast('Erro ao salvar abastecimento', 'error');
+      const message = (err as { message?: string })?.message || 'Erro ao salvar abastecimento';
+      showToast(message, 'error');
     } finally {
       setIsUploading(false);
     }
   };
 
-  // If user is not a collaborator, show admin/gestor UI
-  if (user?.role !== 'collaborator') {
+  // Admin e Gestor: UI desktop completa
+  if (canAccessGestao) {
     return <AbastecimentoAdm />;
   }
 
-  // Collaborator UI - following the template exactly
+  // Colaborador: UI mobile simplificada
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#0A0A0A] pb-[100px] pt-[env(safe-area-inset-top)]">
       {/* Toast */}
@@ -162,11 +205,37 @@ export const Abastecimento: React.FC = () => {
             <h1 className="text-xl font-bold text-[#1a1a2e] dark:text-white">Abastecimento</h1>
           </div>
           <div className="flex items-center gap-1.5">
+            {!isOnline && (
+              <span className="bg-ff-yellow text-black text-[10px] font-bold px-2 py-1 rounded-full uppercase">
+                Offline
+              </span>
+            )}
+            {pendingCount > 0 && (
+              <span className="bg-[#ca8a04] text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                <CloudOff size={10} /> {pendingCount}
+              </span>
+            )}
             <span className="bg-[#22c55e] text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase flex items-center gap-1">
               <User size={8} /> Colaborador
             </span>
           </div>
         </div>
+
+        {alertaManutencao && (
+          <div className={`p-4 rounded-lg border mb-3.5 ${alertaManutencao.bgClass}`}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle className={`w-5 h-5 shrink-0 ${alertaManutencao.textClass}`} />
+              <div className="flex-1">
+                <p className={`font-semibold text-sm ${alertaManutencao.textClass}`}>
+                  {alertaManutencao.mensagem}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  O trator continua operando normalmente. Registre a manutenção no menu Manutenção.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tractor Card */}
         <div className="bg-white dark:bg-[#141414] rounded-2xl p-3.5 px-4 shadow-sm border border-[#f3f4f6] dark:border-[#262626] mb-3.5">
@@ -221,6 +290,41 @@ export const Abastecimento: React.FC = () => {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Tanque de Origem */}
+        <div className="bg-white dark:bg-[#141414] rounded-2xl shadow-sm border border-[#f3f4f6] dark:border-[#262626] mb-3.5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#f3f4f6] dark:border-[#262626] flex items-center gap-2.5 font-semibold text-sm text-[#1a1a2e] dark:text-white bg-[#fafafa] dark:bg-[#1A1A1A]">
+            <Droplets className="w-4 h-4 text-[#facc15]" /> Tanque de Origem
+          </div>
+          <div className="p-3.5 px-4 space-y-3">
+            <Select
+              value={selectedTankId}
+              onChange={(e) => setSelectedTankId(e.target.value)}
+              className="w-full border-2 border-[#e5e7eb] dark:border-[#262626] rounded-xl py-3 px-3 dark:bg-[#171717] dark:text-white"
+            >
+              <option value="">Selecione o tanque...</option>
+              {tanquesDisponiveis.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome} — {formatLiters(t.saldo_atual)} disp.
+                </option>
+              ))}
+            </Select>
+            {selectedTank && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-center p-2.5 bg-[#f0fdf4] dark:bg-[#1A1A1A] rounded-xl border border-[#86efac] dark:border-[#262626]">
+                  <p className="text-[10px] uppercase text-[#6b7280] dark:text-[#9ca3af]">Saldo</p>
+                  <p className={`text-sm font-bold ${exceedsTankSaldo ? 'text-[#dc2626]' : 'text-[#16a34a]'}`}>
+                    {formatLiters(saldoTanque)}
+                  </p>
+                </div>
+                <div className="text-center p-2.5 bg-[#fef9c3] dark:bg-[#1A1A1A] rounded-xl border border-[#fde047] dark:border-[#262626]">
+                  <p className="text-[10px] uppercase text-[#6b7280] dark:text-[#9ca3af]">CMP</p>
+                  <p className="text-sm font-bold text-[#854d0e] dark:text-[#facc15]">{formatCmp(cmpAtual)}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -293,7 +397,7 @@ export const Abastecimento: React.FC = () => {
                   onChange={(e) => setLiters(e.target.value)}
                   placeholder="0,00"
                   className={`pl-10 pr-12 py-4 border-2 rounded-xl text-center text-2xl font-bold tracking-widest ${
-                    exceedsTankCapacity
+                    exceedsTankCapacity || exceedsTankSaldo
                       ? 'border-[#dc2626] shadow-[0_0_0_4px_rgba(220,38,38,0.12)] animate-shake'
                       : 'border-[#e5e7eb] dark:border-[#262626] bg-white dark:bg-[#171717] text-[#1a1a2e] dark:text-white'
                   }`}
@@ -304,8 +408,14 @@ export const Abastecimento: React.FC = () => {
                 </span>
               </div>
               <div className="text-center text-xs text-[#9ca3af] mt-1">
-                Capacidade máxima do tanque: {tankCapacity} L
+                Capacidade do trator: {tankCapacity} L · CMP: {selectedTank ? formatCmp(cmpAtual) : '—'}
               </div>
+              {exceedsTankSaldo && (
+                <div className="text-center text-xs text-[#dc2626] font-semibold mt-1">
+                  <AlertTriangle className="inline w-3 h-3 mr-1" />
+                  Saldo insuficiente no tanque ({formatLiters(saldoTanque)} disponíveis)
+                </div>
+              )}
               {exceedsTankCapacity && (
                 <div className="text-center text-xs text-[#dc2626] font-semibold mt-1 animate-slideDown">
                   <AlertTriangle className="inline w-3 h-3 mr-1" />
@@ -345,10 +455,10 @@ export const Abastecimento: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white dark:bg-[#14141A] border-t border-[#e5e7eb] dark:border-[#262626] px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <Button
           onClick={handleSave}
-          disabled={isCreating || isUpdating || isUploading || exceedsTankCapacity}
+          disabled={isSaving || isUploading || cannotSave}
           className="w-full py-4 bg-gradient-to-br from-[#facc15] to-[#f59e0b] text-[#1a1a2e] border-none rounded-xl text-base font-bold flex items-center justify-center gap-2.5 shadow-lg hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isCreating || isUpdating || isUploading ? (
+          {isSaving || isUploading ? (
             <div className="inline-block w-5 h-5 border-2 border-[rgba(26,26,46,0.1)] border-t-[#1a1a2e] rounded-full animate-spin" />
           ) : (
             <SaveIcon className="w-5 h-5" />

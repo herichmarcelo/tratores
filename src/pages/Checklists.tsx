@@ -19,7 +19,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
-import { useTratores, useChecklists, useCreateChecklist, useUsuarios } from '../hooks';
+import { useTratores, useChecklists, useOfflineCreateChecklist, useUsuarios, useOnlineStatus, useOfflineSync } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 import type { Tractor, User as UserType } from '../types';
 
 // Types for checklist items
@@ -47,6 +48,10 @@ const initialChecklistItems: LocalChecklistItem[] = [
 
 export const Checklists: React.FC = () => {
   const { theme, setPreference } = useTheme();
+  const { user, isColaborador } = useAuth();
+  const isOnline = useOnlineStatus();
+  const { pendingCount } = useOfflineSync();
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' } | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   const [checklistItems, setChecklistItems] = useState<LocalChecklistItem[]>(initialChecklistItems);
   const [selectedTrator, setSelectedTrator] = useState<Tractor | null>(null);
@@ -57,7 +62,7 @@ export const Checklists: React.FC = () => {
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
   const { data: checklists, isLoading: checklistsLoading, refetch: refetchChecklists } = useChecklists();
   const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
-  const createChecklist = useCreateChecklist();
+  const createChecklist = useOfflineCreateChecklist();
 
   // Filter only active tractors
   const activeTratores = useMemo(() => {
@@ -71,13 +76,19 @@ export const Checklists: React.FC = () => {
     }
   }, [activeTratores]);
 
-  // Set default operador when loaded
+  // Operador padrão: usuário logado (colaborador no campo)
   useEffect(() => {
-    if (usuarios && usuarios.length > 0 && !selectedOperador) {
-      const operador = usuarios.find(u => u.perfil === 'colaborador') || usuarios[0];
-      setSelectedOperador(operador);
+    if (user && !selectedOperador) {
+      setSelectedOperador({
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        perfil: user.perfil,
+        ativo: true,
+        created_at: new Date(),
+      });
     }
-  }, [usuarios]);
+  }, [user, selectedOperador]);
 
   const toggleTheme = () => {
     setPreference(theme === 'dark' ? 'light' : 'dark');
@@ -116,6 +127,11 @@ export const Checklists: React.FC = () => {
 
   const stats = useMemo(() => calculateStats(), [checklistItems]);
 
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   // Handle save checklist
   const handleSaveChecklist = async () => {
     if (!selectedTrator) {
@@ -128,31 +144,37 @@ export const Checklists: React.FC = () => {
     const status = stats.checklistStatus;
 
     try {
-      await createChecklist.mutateAsync({
+      const result = await createChecklist.mutateAsync({
         trator_id: selectedTrator.id,
-        operador_id: selectedOperador?.id,
+        operador_id: selectedOperador?.id ?? user?.id,
         data_checklist: now,
         score: score,
         status: status,
         observacoes: 'Checklist criado via app',
-        assinatura: selectedOperador?.nome || '',
+        assinatura: selectedOperador?.nome || user?.nome || '',
       });
 
-      // Reset checklist
       setChecklistItems(initialChecklistItems);
-      // Switch to history tab
       setActiveTab('list');
-      // Refetch checklists to update history
-      await refetchChecklists();
-      alert('Checklist salvo com sucesso!');
+      if (result.mode === 'online') {
+        await refetchChecklists();
+        showToast('Checklist salvo com sucesso!', 'success');
+      } else {
+        showToast('Salvo offline, sincronizará quando houver internet', 'warning');
+      }
     } catch (error) {
       console.error('Erro ao salvar checklist:', error);
-      alert('Erro ao salvar checklist. Por favor, tente novamente.');
+      showToast('Erro ao salvar checklist. Por favor, tente novamente.', 'error');
     }
   };
 
   return (
     <div className="min-h-screen bg-background dark:bg-[#0A0A0A]">
+      {toast && (
+        <div className={`fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl text-white text-sm font-medium shadow-lg z-50 ${toast.type === 'success' ? 'bg-[#16a34a]' : toast.type === 'error' ? 'bg-[#dc2626]' : 'bg-[#ca8a04]'}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="px-4 lg:px-6 pt-4 lg:pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -160,6 +182,16 @@ export const Checklists: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Checklists</h1>
           </div>
           <div className="flex items-center gap-2">
+            {!isOnline && (
+              <span className="bg-ff-yellow text-black text-[10px] font-bold px-2 py-1 rounded-full uppercase">
+                Offline
+              </span>
+            )}
+            {pendingCount > 0 && (
+              <span className="bg-[#ca8a04] text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                {pendingCount} pendente{pendingCount > 1 ? 's' : ''}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -375,6 +407,17 @@ export const Checklists: React.FC = () => {
                     
                     <div>
                       <h3 className="text-sm font-semibold text-gray-600 dark:text-[#B3B3B3] uppercase mb-3">Informações do Operador</h3>
+                      {isColaborador ? (
+                        <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-[#2A2A2A] rounded-lg bg-white dark:bg-[#1A1A1A]">
+                          <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
+                            <User className="w-6 h-6 text-gray-400 dark:text-[#B3B3B3]" />
+                          </div>
+                          <div>
+                            <h4 className="text-base font-semibold text-gray-900 dark:text-white">{user?.nome}</h4>
+                            <p className="text-sm text-gray-600 dark:text-[#B3B3B3]">Operador de campo</p>
+                          </div>
+                        </div>
+                      ) : (
                       <div className="relative">
                         <button
                           onClick={() => setShowOperadorDropdown(!showOperadorDropdown)}
@@ -452,6 +495,7 @@ export const Checklists: React.FC = () => {
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>

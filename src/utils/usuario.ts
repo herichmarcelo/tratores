@@ -13,6 +13,7 @@ export type UsuarioRow = {
   cargo?: string | null;
   foto_url?: string | null;
   ativo?: boolean | null;
+  fazenda_id?: string | null;
   created_at?: string | Date | null;
   updated_at?: string | Date | null;
 };
@@ -38,6 +39,7 @@ export const mapUsuarioRow = (row: UsuarioRow): User => ({
   perfil: row.perfil || mapFuncaoToPerfil(row.funcao),
   foto_url: row.foto_url || undefined,
   ativo: row.ativo ?? true,
+  fazenda_id: row.fazenda_id || undefined,
   created_at: (row.created_at || new Date()) as Date,
   updated_at: row.updated_at as Date | undefined,
 });

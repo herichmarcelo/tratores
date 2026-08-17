@@ -10,6 +10,7 @@ import {
   X,
   Sun,
   Moon,
+  Fuel,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -24,13 +25,16 @@ import {
   useUpdateUsuario,
   useCreateFazenda,
   useCreateSetor,
+  useTanques,
+  useCreateTank,
 } from '../hooks';
+import { formatCmp, formatCurrency, formatLiters } from '../utils/cmp';
 import { AvatarUploadField, UserAvatar } from '../components/UserAvatar';
 import { uploadToCloudinary } from '../services/cloudinary';
 import type { User, UserProfile } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
-type ConfigTab = 'usuarios' | 'fazendas' | 'setores';
+type ConfigTab = 'usuarios' | 'fazendas' | 'setores' | 'tanques';
 
 const perfilLabels: Record<UserProfile, string> = {
   administrador: 'Administrador',
@@ -42,6 +46,7 @@ const tabs: { id: ConfigTab; label: string; icon: React.ElementType }[] = [
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'fazendas', label: 'Fazendas', icon: Building2 },
   { id: 'setores', label: 'Setores', icon: MapPin },
+  { id: 'tanques', label: 'Tanques', icon: Fuel },
 ];
 
 export const Configuracoes: React.FC = () => {
@@ -56,11 +61,13 @@ export const Configuracoes: React.FC = () => {
   const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
   const { data: fazendas, isLoading: fazendasLoading } = useFazendas();
   const { data: setores, isLoading: setoresLoading } = useSetores();
+  const { data: tanques, isLoading: tanquesLoading } = useTanques();
 
   const { mutateAsync: createUsuario, isPending: creatingUsuario } = useCreateUsuario();
   const { mutateAsync: updateUsuario, isPending: updatingUsuario } = useUpdateUsuario();
   const { mutateAsync: createFazenda, isPending: creatingFazenda } = useCreateFazenda();
   const { mutateAsync: createSetor, isPending: creatingSetor } = useCreateSetor();
+  const { mutateAsync: createTank, isPending: creatingTank } = useCreateTank();
 
   const [editingUsuarioId, setEditingUsuarioId] = useState<string | null>(null);
 
@@ -71,6 +78,7 @@ export const Configuracoes: React.FC = () => {
     confirmarSenha: '',
     cargo: '',
     perfil: 'colaborador' as UserProfile,
+    fazenda_id: '',
     ativo: true,
   });
   const [usuarioFotoFile, setUsuarioFotoFile] = useState<File | null>(null);
@@ -91,6 +99,17 @@ export const Configuracoes: React.FC = () => {
     nome: '',
     fazenda_id: '',
   });
+
+  const [tanqueForm, setTanqueForm] = useState({
+    nome: '',
+    fazenda_id: '',
+    setor_id: '',
+    capacidade: '',
+  });
+
+  const setoresFiltradosTanque = setores?.filter(
+    (s) => !tanqueForm.fazenda_id || s.fazenda_id === tanqueForm.fazenda_id,
+  );
 
   const handleError = (err: unknown) => {
     const message = (err as { message?: string })?.message || 'Erro ao salvar.';
@@ -118,6 +137,7 @@ export const Configuracoes: React.FC = () => {
       confirmarSenha: '',
       cargo: '',
       perfil: 'colaborador',
+      fazenda_id: '',
       ativo: true,
     });
     setUsuarioFotoFile(null);
@@ -136,6 +156,7 @@ export const Configuracoes: React.FC = () => {
       confirmarSenha: '',
       cargo: usuario.cargo || '',
       perfil: usuario.perfil,
+      fazenda_id: usuario.fazenda_id || '',
       ativo: usuario.ativo,
     });
     setUsuarioFotoFile(null);
@@ -146,12 +167,18 @@ export const Configuracoes: React.FC = () => {
     setError('');
   };
 
+  const requiresFazenda = usuarioForm.perfil === 'gestor' || usuarioForm.perfil === 'colaborador';
+
   const handleUpdateUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!editingUsuarioId) return;
     if (!usuarioForm.nome.trim() || !usuarioForm.email.trim()) {
       setError('Nome e e-mail são obrigatórios.');
+      return;
+    }
+    if (requiresFazenda && !usuarioForm.fazenda_id) {
+      setError('Selecione a fazenda/propriedade do usuário.');
       return;
     }
     if (usuarioForm.senha || usuarioForm.confirmarSenha) {
@@ -178,6 +205,7 @@ export const Configuracoes: React.FC = () => {
         email: usuarioForm.email.trim(),
         cargo: usuarioForm.cargo.trim() || undefined,
         perfil: usuarioForm.perfil,
+        fazenda_id: requiresFazenda ? usuarioForm.fazenda_id : '',
         ativo: usuarioForm.ativo,
         ...(foto_url ? { foto_url } : {}),
         ...(usuarioForm.senha ? { senha: usuarioForm.senha } : {}),
@@ -208,6 +236,10 @@ export const Configuracoes: React.FC = () => {
       setError('As senhas não coincidem.');
       return;
     }
+    if (requiresFazenda && !usuarioForm.fazenda_id) {
+      setError('Selecione a fazenda/propriedade do usuário.');
+      return;
+    }
     try {
       let foto_url: string | undefined;
       if (usuarioFotoFile) {
@@ -229,6 +261,7 @@ export const Configuracoes: React.FC = () => {
         senha: usuarioForm.senha,
         cargo: usuarioForm.cargo.trim() || undefined,
         perfil: usuarioForm.perfil,
+        fazenda_id: requiresFazenda ? usuarioForm.fazenda_id : '',
         foto_url,
         ativo: true,
       });
@@ -285,6 +318,35 @@ export const Configuracoes: React.FC = () => {
         ativo: true,
       });
       setSetorForm({ nome: '', fazenda_id: '' });
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
+  const handleCreateTanque = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const capacidade = parseFloat(tanqueForm.capacidade);
+    if (!tanqueForm.nome.trim()) {
+      setError('O nome do tanque é obrigatório.');
+      return;
+    }
+    if (!capacidade || capacidade <= 0) {
+      setError('Informe uma capacidade válida.');
+      return;
+    }
+    try {
+      await createTank({
+        nome: tanqueForm.nome.trim(),
+        fazenda_id: tanqueForm.fazenda_id || undefined,
+        setor_id: tanqueForm.setor_id || undefined,
+        capacidade,
+        saldo_atual: 0,
+        custo_medio_atual: 0,
+        custo_total_estoque: 0,
+        ativo: true,
+      });
+      setTanqueForm({ nome: '', fazenda_id: '', setor_id: '', capacidade: '' });
     } catch (err) {
       handleError(err);
     }
@@ -420,7 +482,14 @@ export const Configuracoes: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">Perfil</label>
                       <Select
                         value={usuarioForm.perfil}
-                        onChange={(e) => setUsuarioForm(f => ({ ...f, perfil: e.target.value as UserProfile }))}
+                        onChange={(e) => {
+                          const perfil = e.target.value as UserProfile;
+                          setUsuarioForm(f => ({
+                            ...f,
+                            perfil,
+                            fazenda_id: perfil === 'administrador' ? '' : f.fazenda_id,
+                          }));
+                        }}
                         className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
                       >
                         <option value="administrador">Administrador</option>
@@ -442,6 +511,26 @@ export const Configuracoes: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  {requiresFazenda && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">
+                        Fazenda / Propriedade *
+                      </label>
+                      <Select
+                        value={usuarioForm.fazenda_id}
+                        onChange={(e) => setUsuarioForm(f => ({ ...f, fazenda_id: e.target.value }))}
+                        className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                        required
+                      >
+                        <option value="">Selecione a propriedade...</option>
+                        {fazendas?.map((fazenda) => (
+                          <option key={fazenda.id} value={fazenda.id}>
+                            {fazenda.nome}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
                   {error && <p className="text-sm text-red-600">{error}</p>}
                   <div className="flex gap-3">
                     {editingUsuarioId && (
@@ -500,6 +589,11 @@ export const Configuracoes: React.FC = () => {
                             <p className="text-sm text-gray-500 dark:text-[#B3B3B3] truncate">{usuario.email}</p>
                             {usuario.cargo && (
                               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{usuario.cargo}</p>
+                            )}
+                            {usuario.fazenda_id && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                {fazendas?.find((f) => f.id === usuario.fazenda_id)?.nome || 'Fazenda vinculada'}
+                              </p>
                             )}
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
@@ -745,6 +839,125 @@ export const Configuracoes: React.FC = () => {
                           <Badge className={setor.ativo ? 'bg-ff-green-active/20 text-ff-green-active border-ff-green-active/30' : 'bg-gray-100 dark:bg-[#1A1A1A] text-gray-600 dark:text-[#B3B3B3]'}>
                             {setor.ativo ? 'Ativo' : 'Inativo'}
                           </Badge>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'tanques' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-none shadow-sm dark:bg-[#14141A]">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-gray-900 dark:text-white">
+                  <Plus className="w-5 h-5 text-ff-yellow" />
+                  Novo Tanque de Combustível
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateTanque} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">Nome *</label>
+                    <Input
+                      value={tanqueForm.nome}
+                      onChange={(e) => setTanqueForm(f => ({ ...f, nome: e.target.value }))}
+                      placeholder="Ex: Tanque Central Matriz"
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">Fazenda</label>
+                    <Select
+                      value={tanqueForm.fazenda_id}
+                      onChange={(e) => setTanqueForm(f => ({ ...f, fazenda_id: e.target.value, setor_id: '' }))}
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                    >
+                      <option value="">Selecione uma fazenda...</option>
+                      {fazendas?.map((fazenda) => (
+                        <option key={fazenda.id} value={fazenda.id}>{fazenda.nome}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">Setor</label>
+                    <Select
+                      value={tanqueForm.setor_id}
+                      onChange={(e) => setTanqueForm(f => ({ ...f, setor_id: e.target.value }))}
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      disabled={!tanqueForm.fazenda_id}
+                    >
+                      <option value="">Selecione um setor...</option>
+                      {setoresFiltradosTanque?.map((setor) => (
+                        <option key={setor.id} value={setor.id}>{setor.nome}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#B3B3B3] mb-1">Capacidade Máxima (L) *</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tanqueForm.capacidade}
+                      onChange={(e) => setTanqueForm(f => ({ ...f, capacidade: e.target.value }))}
+                      placeholder="Ex: 10000"
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      required
+                    />
+                  </div>
+                  {error && activeTab === 'tanques' && <p className="text-sm text-red-600">{error}</p>}
+                  <Button
+                    type="submit"
+                    className="bg-ff-yellow text-black hover:brightness-110 w-full"
+                    disabled={creatingTank}
+                  >
+                    {creatingTank ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Tanque'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm dark:bg-[#14141A]">
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-900 dark:text-white">Tanques cadastrados</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {tanquesLoading ? (
+                  <div className="p-8 flex justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-ff-yellow" />
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 dark:divide-[#2A2A2A] max-h-[520px] overflow-y-auto">
+                    {tanques?.length === 0 ? (
+                      <p className="p-6 text-center text-gray-500 dark:text-[#B3B3B3]">Nenhum tanque cadastrado</p>
+                    ) : (
+                      tanques?.map((tanque) => (
+                        <div key={tanque.id} className="p-4 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-white">{tanque.nome}</p>
+                            <p className="text-sm text-gray-500 dark:text-[#B3B3B3]">
+                              {[tanque.fazenda?.nome, tanque.setor?.nome].filter(Boolean).join(' · ') || 'Sem localização'}
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge className="bg-ff-yellow/10 text-ff-yellow border-none text-[10px]">
+                                Saldo: {formatLiters(tanque.saldo_atual)}
+                              </Badge>
+                              <Badge className="bg-blue-500/10 text-blue-400 border-none text-[10px]">
+                                Cap: {formatLiters(tanque.capacidade)}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-gray-500 dark:text-[#B3B3B3]">CMP</p>
+                            <p className="font-bold text-ff-yellow text-sm">{formatCmp(tanque.custo_medio_atual)}</p>
+                            <p className="text-xs text-gray-500 dark:text-[#B3B3B3] mt-1">Em estoque</p>
+                            <p className="font-bold text-ff-green-active text-sm">{formatCurrency(tanque.custo_total_estoque)}</p>
+                          </div>
                         </div>
                       ))
                     )}

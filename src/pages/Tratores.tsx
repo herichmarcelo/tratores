@@ -25,10 +25,14 @@ import { Select } from '../components/ui/select';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useTratores, useCreateTrator, useUpdateTrator, useFazendas, useSetores, useAbastecimentos } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
+import { useFazendaScope } from '../hooks/useFazendaScope';
 import { useTheme } from '../contexts/ThemeContext';
 import { TractorImage } from '../components/TractorImage';
 import { ImageUpload } from '../components/ImageUpload';
+import { MaintenanceAlertBadge } from '../components/MaintenanceAlertBadge';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { getProximaManutencaoTexto } from '../utils/manutencaoAlerts';
 
 const getStatusColor = (status: string, isDark: boolean) => {
   const lower = status.toLowerCase();
@@ -60,9 +64,13 @@ const initialFormState = {
   modelo: '',
   ano: '',
   setor: '',
+  centro_custo: '',
   horimetro_atual: '',
   capacidade_tanque: '',
   potencia_cv: '',
+  intervalo_manutencao_horas: '500',
+  horimetro_ultima_manutencao: '0',
+  alerta_manutencao_ativo: 'true',
   status: 'ativo',
   fazenda_id: '',
 };
@@ -70,6 +78,8 @@ const initialFormState = {
 export const Tratores: React.FC = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { isGestor } = useAuth();
+  const { scopedFazendaId } = useFazendaScope();
   const [activeTab, setActiveTab] = useState('todos');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -88,6 +98,33 @@ export const Tratores: React.FC = () => {
 
   const isDark = theme === 'dark';
 
+  const setoresFiltrados = useMemo(() => {
+    if (!setores) return [];
+    const fazendaFilter = form.fazenda_id || scopedFazendaId;
+    if (!fazendaFilter) return setores;
+    return setores.filter((s) => s.fazenda_id === fazendaFilter);
+  }, [setores, form.fazenda_id, scopedFazendaId]);
+
+  const handleOpenAddModal = () => {
+    setEditingId(null);
+    setForm({
+      ...initialFormState,
+      fazenda_id: scopedFazendaId || '',
+    });
+    setImageFile(null);
+    setImagePreview(null);
+    setFormError('');
+    setShowAddModal(true);
+  };
+
+  const proximaManutencaoPreview = useMemo(() => {
+    const horimetroAtual = parseFloat(form.horimetro_atual) || 0;
+    const ultima = parseFloat(form.horimetro_ultima_manutencao) || 0;
+    const intervalo = parseInt(form.intervalo_manutencao_horas, 10) || 500;
+    if (form.alerta_manutencao_ativo !== 'true') return null;
+    return getProximaManutencaoTexto(horimetroAtual, ultima, intervalo);
+  }, [form.horimetro_atual, form.horimetro_ultima_manutencao, form.intervalo_manutencao_horas, form.alerta_manutencao_ativo]);
+
   const handleFormChange = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFormError('');
@@ -100,9 +137,13 @@ export const Tratores: React.FC = () => {
       modelo: trator.modelo || '',
       ano: trator.ano ? String(trator.ano) : '',
       setor: trator.setor || '',
+      centro_custo: trator.centro_custo || '',
       horimetro_atual: trator.horimetro_atual != null ? String(trator.horimetro_atual) : '',
       capacidade_tanque: trator.capacidade_tanque != null ? String(trator.capacidade_tanque) : '',
       potencia_cv: trator.potencia_cv != null ? String(trator.potencia_cv) : '',
+      intervalo_manutencao_horas: trator.intervalo_manutencao_horas != null ? String(trator.intervalo_manutencao_horas) : '500',
+      horimetro_ultima_manutencao: trator.horimetro_ultima_manutencao != null ? String(trator.horimetro_ultima_manutencao) : '0',
+      alerta_manutencao_ativo: trator.alerta_manutencao_ativo === false ? 'false' : 'true',
       status: trator.status,
       fazenda_id: trator.fazenda_id || '',
     });
@@ -155,11 +196,15 @@ export const Tratores: React.FC = () => {
         modelo: form.modelo.trim() || undefined,
         ano: form.ano ? parseInt(form.ano, 10) : undefined,
         setor: form.setor.trim() || undefined,
+        centro_custo: form.centro_custo.trim() || undefined,
         horimetro_atual: form.horimetro_atual ? parseFloat(form.horimetro_atual) : undefined,
         capacidade_tanque: form.capacidade_tanque ? parseFloat(form.capacidade_tanque) : undefined,
         potencia_cv: form.potencia_cv ? parseFloat(form.potencia_cv) : undefined,
+        intervalo_manutencao_horas: form.intervalo_manutencao_horas ? parseInt(form.intervalo_manutencao_horas, 10) : 500,
+        horimetro_ultima_manutencao: form.horimetro_ultima_manutencao ? parseFloat(form.horimetro_ultima_manutencao) : 0,
+        alerta_manutencao_ativo: form.alerta_manutencao_ativo === 'true',
         status: form.status,
-        fazenda_id: form.fazenda_id || undefined,
+        fazenda_id: (isGestor ? scopedFazendaId : form.fazenda_id) || undefined,
         imagem_url: imagemUrl,
       };
 
@@ -225,7 +270,7 @@ export const Tratores: React.FC = () => {
         </div>
         <Button
           className="bg-primary-600 dark:bg-ff-yellow hover:bg-primary-700 dark:hover:brightness-110 flex items-center gap-2 text-gray-900 dark:text-[#0A0A0A]"
-          onClick={() => setShowAddModal(true)}
+          onClick={handleOpenAddModal}
         >
           <Plus className="w-4 h-4" />
           Adicionar Trator
@@ -364,6 +409,7 @@ export const Tratores: React.FC = () => {
                             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                               {trator.marca} {trator.modelo}
                             </p>
+                            <MaintenanceAlertBadge trator={trator} className="mt-1" />
                           </div>
                           <Badge className={`${getStatusColor(trator.status, isDark)} shrink-0 text-xs`}>
                             {formatStatus(trator.status)}
@@ -441,7 +487,7 @@ export const Tratores: React.FC = () => {
         {/* FAB Novo Trator */}
         <button
           type="button"
-          onClick={() => setShowAddModal(true)}
+          onClick={handleOpenAddModal}
           className="fixed bottom-[4.5rem] right-4 z-30 flex items-center gap-2 bg-primary-600 dark:bg-ff-yellow hover:bg-primary-700 dark:hover:brightness-110 text-white dark:text-[#0A0A0A] rounded-full shadow-lg pl-4 pr-5 py-3 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -568,7 +614,8 @@ export const Tratores: React.FC = () => {
                   <Select
                     value={form.fazenda_id}
                     onChange={(e) => handleFormChange('fazenda_id', e.target.value)}
-                    className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] text-gray-900 dark:text-gray-100"
+                    disabled={isGestor}
+                    className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] text-gray-900 dark:text-gray-100 disabled:opacity-70"
                   >
                     <option value="">Selecione...</option>
                     {fazendas?.map((fazenda) => (
@@ -587,13 +634,78 @@ export const Tratores: React.FC = () => {
                   className="bg-white dark:bg-[#171717] border-gray-200 dark:border-[#262626] text-gray-900 dark:text-gray-100"
                 >
                   <option value="">Selecione um setor...</option>
-                  {setores?.map((setor) => (
+                  {setoresFiltrados.map((setor) => (
                     <option key={setor.id} value={setor.nome}>
                       {setor.nome}{setor.fazenda ? ` — ${setor.fazenda.nome}` : ''}
                     </option>
                   ))}
                 </Select>
               </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase mb-1 block">
+                  Centro de Custo
+                </label>
+                <Input
+                  placeholder="Ex: CC-001 — Lavoura Norte"
+                  value={form.centro_custo}
+                  onChange={(e) => handleFormChange('centro_custo', e.target.value)}
+                  className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-gray-100 dark:border-[#262626]">
+                <p className="text-xs font-semibold text-gray-500 dark:text-[#B3B3B3] uppercase mb-3">
+                  Manutenção Preventiva
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase mb-1 block">
+                      Intervalo de Manutenção (horas)
+                    </label>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="Ex: 100, 250, 500"
+                      value={form.intervalo_manutencao_horas}
+                      onChange={(e) => handleFormChange('intervalo_manutencao_horas', e.target.value)}
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase mb-1 block">
+                      Horímetro da Última Manutenção
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0"
+                      value={form.horimetro_ultima_manutencao}
+                      onChange={(e) => handleFormChange('horimetro_ultima_manutencao', e.target.value)}
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.alerta_manutencao_ativo === 'true'}
+                    onChange={(e) => handleFormChange('alerta_manutencao_ativo', e.target.checked ? 'true' : 'false')}
+                    className="rounded border-gray-300 dark:border-[#2A2A2A] text-ff-yellow focus:ring-ff-yellow"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-[#B3B3B3]">
+                    Ativar alertas automáticos de manutenção
+                  </span>
+                </label>
+                {proximaManutencaoPreview && (
+                  <p className={`text-xs mt-2 font-medium ${
+                    proximaManutencaoPreview.includes('vencida') ? 'text-ff-danger' : 'text-ff-green-active'
+                  }`}>
+                    {proximaManutencaoPreview}
+                  </p>
+                )}
+              </div>
+
               {formError && (
                 <p className="text-sm text-red-600 dark:text-ff-danger">{formError}</p>
               )}
@@ -759,7 +871,10 @@ export const Tratores: React.FC = () => {
                   {tratoresFiltrados.map((trator) => (
                     <tr key={trator.id} className="hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors border-b border-gray-50 dark:border-[#262626]/50 last:border-0">
                       <td className="px-4 py-4 align-middle">
-                        <span className="font-semibold text-gray-900 dark:text-white">{trator.patrimonio}</span>
+                        <div>
+                          <span className="font-semibold text-gray-900 dark:text-white">{trator.patrimonio}</span>
+                          <div className="mt-1"><MaintenanceAlertBadge trator={trator} /></div>
+                        </div>
                       </td>
                       <td className="px-4 py-4 align-middle">
                         <div className="flex items-center gap-4">

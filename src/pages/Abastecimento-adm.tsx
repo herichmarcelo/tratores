@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Fuel,
   User,
@@ -16,6 +16,8 @@ import {
   Sun,
   Moon,
   MapPin,
+  Droplets,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -26,21 +28,26 @@ import {
   useAbastecimentos,
   useTratores,
   useUsuarios,
-  useCreateAbastecimento,
+  useFazendas,
+  useSetores,
+  useTanques,
+  useOfflineFuelTractor,
 } from '../hooks';
 import { TractorImage } from '../components/TractorImage';
 import { useTheme } from '../contexts/ThemeContext';
+import { getAlertaManutencaoBanner } from '../utils/manutencaoAlerts';
+import { formatCmp, formatCurrency, formatLiters } from '../utils/cmp';
 
 export const AbastecimentoAdm: React.FC = () => {
   const { theme, setPreference } = useTheme();
-  const [initialHourmeter, setInitialHourmeter] = useState('5800');
-  const [finalHourmeter, setFinalHourmeter] = useState('5910');
-  const [liters, setLiters] = useState('120');
-  const [pricePerLiter, setPricePerLiter] = useState('5.89');
+  const [initialHourmeter, setInitialHourmeter] = useState('');
+  const [finalHourmeter, setFinalHourmeter] = useState('');
+  const [liters, setLiters] = useState('');
   const [selectedTractor, setSelectedTractor] = useState('');
   const [selectedOperator, setSelectedOperator] = useState('');
-  const [selectedFarm, setSelectedFarm] = useState('Matriz');
-  const [selectedSector, setSelectedSector] = useState('Lavouras Norte');
+  const [selectedFarmId, setSelectedFarmId] = useState('');
+  const [selectedSectorId, setSelectedSectorId] = useState('');
+  const [selectedTankId, setSelectedTankId] = useState('');
 
   const toggleTheme = () => {
     setPreference(theme === 'dark' ? 'light' : 'dark');
@@ -49,24 +56,55 @@ export const AbastecimentoAdm: React.FC = () => {
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: tratores, isLoading: tratoresLoading } = useTratores();
   const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
-  const { mutateAsync: createAbastecimento, isPending: isCreating } = useCreateAbastecimento();
+  const { data: fazendas, isLoading: fazendasLoading } = useFazendas();
+  const { data: setores, isLoading: setoresLoading } = useSetores();
+  const { data: tanques, isLoading: tanquesLoading } = useTanques({
+    fazenda_id: selectedFarmId || undefined,
+    setor_id: selectedSectorId || undefined,
+  });
+  const { mutateAsync: fuelTractor, isPending: isCreating } = useOfflineFuelTractor();
 
-  // Garante que o trator selecionado exista, ou pega o primeiro da lista carregada
   const currentTrator = tratores?.find((t) => t.id === selectedTractor) || tratores?.[0];
-  
-  // Se o select estiver vazio mas os tratores carregaram, seta o primeiro como default visualmente
   const effectiveTractorId = selectedTractor || currentTrator?.id || '';
+  const selectedTank = tanques?.find((t) => t.id === selectedTankId);
 
-  // Cálculos protegidos contra NaN (caso o usuário limpe o input)
+  useEffect(() => {
+    if (currentTrator && !selectedTractor) {
+      setSelectedTractor(currentTrator.id);
+      setInitialHourmeter(currentTrator.horimetro_atual ? String(currentTrator.horimetro_atual) : '');
+      setFinalHourmeter(currentTrator.horimetro_atual ? String(currentTrator.horimetro_atual) : '');
+      if (currentTrator.fazenda_id) {
+        setSelectedFarmId(currentTrator.fazenda_id);
+      }
+    }
+  }, [currentTrator, selectedTractor]);
+
+  useEffect(() => {
+    setSelectedTankId('');
+  }, [selectedFarmId, selectedSectorId]);
+
+  const setoresFiltrados = useMemo(
+    () => setores?.filter((s) => !selectedFarmId || s.fazenda_id === selectedFarmId) ?? [],
+    [setores, selectedFarmId],
+  );
+
   const ini = parseFloat(initialHourmeter) || 0;
   const fin = parseFloat(finalHourmeter) || 0;
   const lit = parseFloat(liters) || 0;
-  const price = parseFloat(pricePerLiter) || 0;
+  const cmpAtual = selectedTank?.custo_medio_atual ?? 0;
+  const saldoDisponivel = selectedTank?.saldo_atual ?? 0;
 
   const hoursWorked = Math.max(0, fin - ini);
   const consumptionPerHour = hoursWorked > 0 ? (lit / hoursWorked).toFixed(2) : '0.00';
-  const totalValue = (lit * price).toFixed(2);
-  const costPerHour = hoursWorked > 0 ? ((lit * price) / hoursWorked).toFixed(2) : '0.00';
+  const totalValue = (lit * cmpAtual).toFixed(2);
+  const costPerHour = hoursWorked > 0 ? ((lit * cmpAtual) / hoursWorked).toFixed(2) : '0.00';
+  const exceedsTankSaldo = selectedTank ? lit > saldoDisponivel : false;
+  const noTankSelected = !selectedTankId;
+
+  const alertaManutencao = useMemo(
+    () => getAlertaManutencaoBanner(currentTrator),
+    [currentTrator],
+  );
 
   const recentRefuels = abastecimentos?.slice(0, 4).map((ab) => ({
     id: ab.id,
@@ -76,32 +114,50 @@ export const AbastecimentoAdm: React.FC = () => {
     consumption: ab.consumo_medio ? `${ab.consumo_medio} L/h` : '0 L/h',
   })) || [];
 
+  const handleTractorChange = (id: string) => {
+    setSelectedTractor(id);
+    const trator = tratores?.find((t) => t.id === id);
+    if (trator) {
+      setInitialHourmeter(trator.horimetro_atual ? String(trator.horimetro_atual) : '');
+      setFinalHourmeter(trator.horimetro_atual ? String(trator.horimetro_atual) : '');
+      if (trator.fazenda_id) setSelectedFarmId(trator.fazenda_id);
+    }
+  };
+
   const handleSave = async () => {
     if (!effectiveTractorId) return alert('Selecione um trator');
+    if (!selectedTankId) return alert('Selecione o tanque de origem');
+    if (lit <= 0) return alert('Informe os litros abastecidos');
+    if (fin <= ini) return alert('Horímetro final deve ser maior que o inicial');
+    if (exceedsTankSaldo) {
+      return alert(`Saldo insuficiente no tanque. Disponível: ${formatLiters(saldoDisponivel)}`);
+    }
+
     try {
-      await createAbastecimento({
+      const result = await fuelTractor({
+        tanque_id: selectedTankId,
         trator_id: effectiveTractorId,
         operador_id: selectedOperator || undefined,
-        data_abastecimento: new Date(),
+        litros: lit,
         horimetro_inicial: ini,
         horimetro_final: fin,
-        horas_trabalhadas: hoursWorked,
-        litros_abastecidos: lit,
-        valor_litro: price,
-        valor_total: parseFloat(totalValue),
-        consumo_medio: parseFloat(consumptionPerHour),
-        custo_hora: parseFloat(costPerHour),
+        data_abastecimento: new Date(),
       });
-      alert('Abastecimento salvo com sucesso!');
+      if (result.mode === 'offline') {
+        alert('Abastecimento salvo offline. Será sincronizado quando a internet voltar.');
+      } else {
+        alert('Abastecimento salvo com sucesso!');
+      }
+      setLiters('');
     } catch (err) {
       console.error('Erro ao salvar abastecimento:', err);
-      alert('Erro ao salvar abastecimento.');
+      const message = (err as { message?: string })?.message || 'Erro ao salvar abastecimento.';
+      alert(message);
     }
   };
 
   return (
     <div className="min-h-screen bg-background dark:bg-[#0A0A0A]">
-      {/* Page header (desktop) */}
       <div className="hidden lg:block px-6 pt-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -128,8 +184,6 @@ export const AbastecimentoAdm: React.FC = () => {
       </div>
 
       <div className="px-4 lg:px-6 pb-24 pt-4 lg:pt-0">
-        
-        {/* Card Resumo do Trator (Aparece no Mobile) */}
         <div className="lg:hidden mb-4">
           <Card className="border-none shadow-sm dark:bg-[#14141A]">
             <CardContent className="p-4">
@@ -141,11 +195,9 @@ export const AbastecimentoAdm: React.FC = () => {
                   bordered={false}
                 />
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : currentTrator?.patrimonio || 'Selecione...'}
-                    </h2>
-                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {tratoresLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : currentTrator?.patrimonio || 'Selecione...'}
+                  </h2>
                   <p className="text-sm text-gray-600 dark:text-[#B3B3B3] mb-2 line-clamp-1">
                     {tratoresLoading ? 'Carregando...' : `${currentTrator?.marca || ''} ${currentTrator?.modelo || ''}`}
                   </p>
@@ -158,11 +210,24 @@ export const AbastecimentoAdm: React.FC = () => {
           </Card>
         </div>
 
+        {alertaManutencao && (
+          <div className={`p-4 rounded-lg border mb-4 ${alertaManutencao.bgClass}`}>
+            <div className="flex items-start gap-3">
+              <AlertTriangle className={`w-5 h-5 shrink-0 ${alertaManutencao.textClass}`} />
+              <div className="flex-1">
+                <p className={`font-semibold text-sm ${alertaManutencao.textClass}`}>
+                  {alertaManutencao.mensagem}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  O trator continua operando normalmente. Registre a manutenção no menu Manutenção.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-          
-          {/* COLUNA ESQUERDA: Formulário Unificado Responsivo */}
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            
             <Card className="border-none shadow-sm dark:bg-[#14141A]">
               <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-4">
                 <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -180,7 +245,7 @@ export const AbastecimentoAdm: React.FC = () => {
                     <Select
                       className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
                       value={effectiveTractorId}
-                      onChange={(e) => setSelectedTractor(e.target.value)}
+                      onChange={(e) => handleTractorChange(e.target.value)}
                       disabled={tratoresLoading}
                     >
                       <option value="">Selecione o trator...</option>
@@ -203,19 +268,64 @@ export const AbastecimentoAdm: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><MapPin className="w-3.5 h-3.5"/> Fazenda</label>
-                    <Select className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" value={selectedFarm} onChange={(e) => setSelectedFarm(e.target.value)}>
-                      <option>Matriz</option>
-                      <option>Fazenda Santa Luzia</option>
+                    <Select
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      value={selectedFarmId}
+                      onChange={(e) => { setSelectedFarmId(e.target.value); setSelectedSectorId(''); }}
+                      disabled={fazendasLoading}
+                    >
+                      <option value="">Selecione...</option>
+                      {fazendas?.map((f) => (
+                        <option key={f.id} value={f.id}>{f.nome}</option>
+                      ))}
                     </Select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Setor</label>
-                    <Select className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" value={selectedSector} onChange={(e) => setSelectedSector(e.target.value)}>
-                      <option>Lavouras Norte</option>
-                      <option>Lavouras Sul</option>
+                    <Select
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      value={selectedSectorId}
+                      onChange={(e) => setSelectedSectorId(e.target.value)}
+                      disabled={setoresLoading || !selectedFarmId}
+                    >
+                      <option value="">Todos os setores</option>
+                      {setoresFiltrados.map((s) => (
+                        <option key={s.id} value={s.id}>{s.nome}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><Droplets className="w-3.5 h-3.5"/> Tanque de Origem *</label>
+                    <Select
+                      className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                      value={selectedTankId}
+                      onChange={(e) => setSelectedTankId(e.target.value)}
+                      disabled={tanquesLoading}
+                    >
+                      <option value="">Selecione o tanque...</option>
+                      {tanques?.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nome} — {formatLiters(t.saldo_atual)} disp.
+                        </option>
+                      ))}
                     </Select>
                   </div>
                 </div>
+
+                {selectedTank && (
+                  <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-ff-yellow/5 border border-ff-yellow/20">
+                    <div>
+                      <p className="text-[10px] uppercase text-gray-500 dark:text-[#B3B3B3]">Saldo Disponível</p>
+                      <p className={`font-bold ${exceedsTankSaldo ? 'text-red-500' : 'text-ff-green-active'}`}>
+                        {formatLiters(saldoDisponivel)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase text-gray-500 dark:text-[#B3B3B3]">Custo Médio (CMP)</p>
+                      <p className="font-bold text-ff-yellow">{formatCmp(cmpAtual)}</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -269,15 +379,16 @@ export const AbastecimentoAdm: React.FC = () => {
                     <Input
                       type="number" step="0.01" value={liters}
                       onChange={(e) => setLiters(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
+                      className={`font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg ${exceedsTankSaldo ? 'border-red-500' : ''}`}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Preço/Litro (R$)</label>
+                    <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Preço/Litro (CMP)</label>
                     <Input
-                      type="number" step="0.01" value={pricePerLiter}
-                      onChange={(e) => setPricePerLiter(e.target.value)}
-                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white text-lg"
+                      type="text"
+                      readOnly
+                      value={selectedTank ? formatCmp(cmpAtual).replace('/L', '') : '—'}
+                      className="font-medium border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A]/50 dark:text-[#B3B3B3] text-lg cursor-not-allowed"
                     />
                   </div>
                   <div className="space-y-1.5 col-span-2 md:col-span-1">
@@ -289,7 +400,19 @@ export const AbastecimentoAdm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Cards de Métricas em Tempo Real */}
+                {exceedsTankSaldo && (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <AlertTriangle className="w-4 h-4" />
+                    Saldo insuficiente no tanque ({formatLiters(saldoDisponivel)} disponíveis)
+                  </div>
+                )}
+                {noTankSelected && lit > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-amber-500">
+                    <AlertTriangle className="w-4 h-4" />
+                    Selecione o tanque de origem
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 mt-2">
                   <div className="p-3 rounded-xl border border-ff-green-active/30 bg-ff-green-active/10">
                     <p className="text-[10px] sm:text-xs font-semibold text-ff-green-active uppercase mb-1 flex items-center gap-1"><Gauge className="w-3.5 h-3.5"/> Consumo Médio</p>
@@ -314,6 +437,7 @@ export const AbastecimentoAdm: React.FC = () => {
                   {['Comprovante', 'Painel', 'Bomba'].map((label) => (
                     <button
                       key={label}
+                      type="button"
                       className="border-2 border-dashed border-gray-200 dark:border-[#2A2A2A] rounded-xl p-3 sm:p-6 flex flex-col items-center justify-center gap-2 hover:border-ff-yellow hover:bg-ff-yellow/5 transition-colors"
                     >
                       <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 dark:text-[#B3B3B3]" />
@@ -326,19 +450,21 @@ export const AbastecimentoAdm: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Botoes Desktop (Ficam ocultos no mobile pois o mobile tem a barra fixa) */}
             <div className="hidden lg:flex items-center justify-end gap-3 pt-4">
               <Button variant="outline" className="border-gray-200 dark:border-[#2A2A2A] text-gray-600 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
                 <XCircle className="w-4 h-4 mr-2" /> Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={isCreating} className="bg-ff-yellow text-black hover:brightness-110 font-bold px-8">
+              <Button
+                onClick={handleSave}
+                disabled={isCreating || exceedsTankSaldo || noTankSelected || lit <= 0}
+                className="bg-ff-yellow text-black hover:brightness-110 font-bold px-8"
+              >
                 {isCreating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Salvar Abastecimento
               </Button>
             </div>
           </div>
 
-          {/* COLUNA DIREITA: Sidebar de Resumo (Visível apenas em telas grandes) */}
           <div className="hidden lg:block space-y-6">
             <Card className="border-none shadow-sm dark:bg-[#14141A]">
               <CardHeader className="pb-3 border-b border-gray-100 dark:border-[#2A2A2A] mb-3">
@@ -348,8 +474,9 @@ export const AbastecimentoAdm: React.FC = () => {
                 {[
                   { label: 'Horas Trabalhadas', value: `${hoursWorked.toFixed(2)} h`, icon: Clock },
                   { label: 'Litros Abastecidos', value: `${lit} L`, icon: Fuel },
+                  { label: 'CMP Aplicado', value: selectedTank ? formatCmp(cmpAtual) : '—', icon: Droplets, color: 'text-ff-yellow' },
                   { label: 'Consumo Médio', value: `${consumptionPerHour} L/h`, icon: Gauge, color: 'text-ff-green-active' },
-                  { label: 'Valor Total', value: `R$ ${totalValue}`, icon: DollarSign },
+                  { label: 'Valor Total', value: formatCurrency(parseFloat(totalValue) || 0), icon: DollarSign },
                   { label: 'Custo por Hora', value: `R$ ${costPerHour}`, icon: DollarSign },
                 ].map((item, index) => (
                   <div key={index} className="flex items-center justify-between text-sm py-1 border-b border-dashed border-gray-100 dark:border-[#2A2A2A] last:border-0">
@@ -391,11 +518,10 @@ export const AbastecimentoAdm: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom navigation FIXED (Apenas Mobile) */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#14141A] border-t border-gray-200 dark:border-[#2A2A2A] p-3 z-40 pb-safe">
         <Button
           onClick={handleSave}
-          disabled={isCreating}
+          disabled={isCreating || exceedsTankSaldo || noTankSelected || lit <= 0}
           className="w-full h-14 text-base font-bold bg-ff-yellow text-black hover:brightness-110 shadow-lg"
         >
           {isCreating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}

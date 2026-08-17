@@ -6,10 +6,12 @@ export interface User {
   email: string;
   cargo?: string;
   perfil: UserProfile;
+  fazenda_id?: string;
   foto_url?: string;
   ativo: boolean;
   created_at: Date;
   updated_at?: Date;
+  fazenda?: Fazenda;
 }
 
 export interface Fazenda {
@@ -46,6 +48,10 @@ export interface Tractor {
   potencia_cv?: number;
   capacidade_tanque?: number;
   horimetro_atual?: number;
+  intervalo_manutencao_horas?: number;
+  horimetro_ultima_manutencao?: number;
+  alerta_manutencao_ativo?: boolean;
+  centro_custo?: string;
   status: string;
   fazenda_id?: string;
   setor?: string;
@@ -59,6 +65,7 @@ export interface Tractor {
 export interface Abastecimento {
   id: string;
   trator_id: string;
+  tanque_id?: string;
   operador_id?: string;
   data_abastecimento: Date;
   horimetro_inicial?: number;
@@ -76,6 +83,57 @@ export interface Abastecimento {
   created_at: Date;
   trator?: Tractor;
   operador?: User;
+}
+
+export type TankMovementType = 'ENTRADA' | 'SAIDA' | 'AJUSTE';
+
+export interface Tank {
+  id: string;
+  fazenda_id?: string;
+  setor_id?: string;
+  nome: string;
+  capacidade: number;
+  saldo_atual: number;
+  custo_medio_atual: number;
+  custo_total_estoque: number;
+  ativo: boolean;
+  created_at: Date;
+  updated_at?: Date;
+  fazenda?: Fazenda;
+  setor?: Setor;
+}
+
+export interface TankMovement {
+  id: string;
+  tanque_id: string;
+  tipo: TankMovementType;
+  litros: number;
+  custo_unitario: number;
+  custo_total: number;
+  custo_medio_gerado?: number;
+  data_movimentacao: Date;
+  referencia_id?: string;
+  observacoes?: string;
+  created_at: Date;
+  tanque?: Tank;
+}
+
+export interface FuelTractorInput {
+  tanque_id: string;
+  trator_id: string;
+  operador_id?: string;
+  litros: number;
+  horimetro_inicial?: number;
+  horimetro_final?: number;
+  data_abastecimento?: Date;
+  observacoes?: string;
+}
+
+export interface FuelPurchaseInput {
+  tanque_id: string;
+  litros: number;
+  preco_litro: number;
+  observacoes?: string;
 }
 
 export interface Checklist {
@@ -116,16 +174,35 @@ export interface Pneu {
   trator?: Tractor;
 }
 
+export type ManutencaoTipo = 'preventiva' | 'corretiva' | 'revisao';
+
+export type NivelAlerta = 'verde' | 'amarelo' | 'laranja' | 'vermelho';
+
+export interface AlertaManutencao {
+  trator_id: string;
+  patrimonio: string;
+  marca_modelo: string;
+  horimetro_atual: number;
+  proxima_manutencao: number;
+  horas_restantes: number;
+  percentual_uso: number;
+  nivel: NivelAlerta;
+  mensagem: string;
+}
+
 export interface Manutencao {
   id: string;
   trator_id: string;
-  tipo: string;
-  descricao?: string;
-  data_manutencao: Date;
+  tipo: ManutencaoTipo | string;
+  data_manutencao: Date | string;
+  horimetro_no_momento?: number;
   valor?: number;
+  descricao?: string;
   responsavel?: string;
+  responsavel_id?: string;
   status?: string;
   proxima_revisao?: Date;
+  observacoes?: string;
   created_at: Date;
   trator?: Tractor;
 }

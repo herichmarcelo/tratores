@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   Tractor,
   Fuel,
+  Truck,
   ClipboardList,
   Wrench,
   FileText,
@@ -19,31 +20,36 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { UserAvatar } from '../components/UserAvatar';
+import { OfflineBanner } from '../components/OfflineBanner';
+import { PendingSyncIndicator } from '../components/PendingSyncIndicator';
 import { useUpdateUsuario } from '../hooks';
 import { uploadToCloudinary } from '../services/cloudinary';
+
+import type { UserProfile } from '../types';
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
   path: string;
-  roles: ('admin' | 'collaborator')[];
+  perfis: UserProfile[];
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: Home, path: '/dashboard', roles: ['admin'] },
-  { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
-  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
-  { label: 'Manutenção', icon: Wrench, path: '/manutencao', roles: ['admin'] },
-  { label: 'Relatórios', icon: FileText, path: '/relatorios', roles: ['admin'] },
-  { label: 'Configurações', icon: Settings, path: '/configuracoes', roles: ['admin'] },
+  { label: 'Dashboard', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
+  { label: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
+  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Compra de Combustível', icon: Truck, path: '/compra-combustivel', perfis: ['administrador', 'gestor'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Manutenção', icon: Wrench, path: '/manutencao', perfis: ['administrador', 'gestor'] },
+  { label: 'Relatórios', icon: FileText, path: '/relatorios', perfis: ['administrador', 'gestor'] },
+  { label: 'Configurações', icon: Settings, path: '/configuracoes', perfis: ['administrador'] },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: 'Home', icon: Home, path: '/dashboard', roles: ['admin'] },
-  { label: 'Tratores', icon: Tractor, path: '/tratores', roles: ['admin'] },
-  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', roles: ['admin', 'collaborator'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', roles: ['admin', 'collaborator'] },
+  { label: 'Home', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
+  { label: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
+  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Checklists', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
 ];
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,18 +89,19 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   };
 
-  const filteredNavItems = navItems.filter(item => 
-    user ? item.roles.includes(user.role) : false
+  const filteredNavItems = navItems.filter(item =>
+    user ? item.perfis.includes(user.perfil) : false
   );
 
   const filteredBottomNavItems = bottomNavItems.filter(item =>
-    user ? item.roles.includes(user.role) : false
+    user ? item.perfis.includes(user.perfil) : false
   );
 
   const isNavActive = (path: string) =>
     location.pathname === path
     || (path === '/configuracoes' && location.pathname.startsWith('/configuracoes'))
-    || (path === '/tratores' && location.pathname.startsWith('/tratores'));
+    || (path === '/tratores' && location.pathname.startsWith('/tratores'))
+    || (path === '/manutencao' && location.pathname.startsWith('/manutencao'));
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#0A0A0A]">
@@ -178,12 +185,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
       {/* Main Content */}
       <main className="lg:ml-64 min-h-screen flex flex-col bg-gray-100 dark:bg-[#0A0A0A]">
+        <OfflineBanner />
+        <div className="lg:hidden px-4 py-2">
+          <PendingSyncIndicator />
+        </div>
         {/* Desktop Header */}
         <header className="hidden lg:flex items-center justify-between px-6 py-4 bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#262626] shadow-sm">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-600 dark:text-gray-300">
               <Menu />
             </Button>
+            <PendingSyncIndicator />
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -217,7 +229,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       </main>
 
       {/* Bottom Navigation (Mobile) */}
-      {filteredBottomNavItems.length > 0 && user?.role !== 'collaborator' && (
+      {filteredBottomNavItems.length > 0 && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-[#262626] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
           <div className="flex items-stretch justify-around py-2">
             {filteredBottomNavItems.map((item) => {
