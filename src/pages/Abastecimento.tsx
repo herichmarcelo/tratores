@@ -187,7 +187,7 @@ export const Abastecimento: React.FC = () => {
 
   // Colaborador: UI mobile simplificada
   return (
-    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#0A0A0A] pb-[100px] pt-[env(safe-area-inset-top)]">
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-[#0A0A0A] pb-6 pt-[env(safe-area-inset-top)]">
       {/* Toast */}
       {toast && (
         <div className={`fixed top-5 left-1/2 -translate-x-1/2 -translate-y-full px-6 py-3 rounded-xl text-white text-sm font-medium shadow-lg z-50 transition-transform duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${toast.type === 'success' ? 'bg-[#16a34a]' : toast.type === 'error' ? 'bg-[#dc2626]' : 'bg-[#ca8a04]'} animate-slideDownToast`}>

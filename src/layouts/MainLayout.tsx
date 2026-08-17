@@ -29,27 +29,21 @@ import type { UserProfile } from '../types';
 
 interface NavItem {
   label: string;
+  shortLabel?: string;
   icon: React.ElementType;
   path: string;
   perfis: UserProfile[];
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
-  { label: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
-  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Dashboard', shortLabel: 'Home', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
+  { label: 'Tratores', shortLabel: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
+  { label: 'Abastecimentos', shortLabel: 'Abastec.', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
   { label: 'Compra de Combustível', icon: Truck, path: '/compra-combustivel', perfis: ['administrador', 'gestor'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
-  { label: 'Manutenção', icon: Wrench, path: '/manutencao', perfis: ['administrador', 'gestor'] },
-  { label: 'Relatórios', icon: FileText, path: '/relatorios', perfis: ['administrador', 'gestor'] },
-  { label: 'Configurações', icon: Settings, path: '/configuracoes', perfis: ['administrador'] },
-];
-
-const bottomNavItems: NavItem[] = [
-  { label: 'Home', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
-  { label: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
-  { label: 'Abastecimentos', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
-  { label: 'Checklists', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Checklists', shortLabel: 'Checklist', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
+  { label: 'Manutenção', shortLabel: 'Manuten.', icon: Wrench, path: '/manutencao', perfis: ['administrador', 'gestor'] },
+  { label: 'Relatórios', shortLabel: 'Relatórios', icon: FileText, path: '/relatorios', perfis: ['administrador', 'gestor'] },
+  { label: 'Configurações', shortLabel: 'Config.', icon: Settings, path: '/configuracoes', perfis: ['administrador'] },
 ];
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -93,10 +87,6 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     user ? item.perfis.includes(user.perfil) : false
   );
 
-  const filteredBottomNavItems = bottomNavItems.filter(item =>
-    user ? item.perfis.includes(user.perfil) : false
-  );
-
   const isNavActive = (path: string) =>
     location.pathname === path
     || (path === '/configuracoes' && location.pathname.startsWith('/configuracoes'))
@@ -108,7 +98,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       {/* Desktop Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-30 h-full w-64 bg-gradient-to-b from-[#0A4D28] to-[#083D20] dark:from-[#111111] dark:to-[#0A0A0A] text-white dark:text-gray-100 transform transition-transform duration-300 ease-in-out
+          fixed top-0 left-0 z-50 h-full w-64 bg-gradient-to-b from-[#0A4D28] to-[#083D20] dark:from-[#111111] dark:to-[#0A0A0A] text-white dark:text-gray-100 transform transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
@@ -184,8 +174,33 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen flex flex-col bg-gray-100 dark:bg-[#0A0A0A]">
+      <main className="lg:ml-64 min-h-screen flex flex-col bg-gray-100 dark:bg-[#0A0A0A] pb-[env(safe-area-inset-bottom)]">
         <OfflineBanner />
+
+        {/* Mobile Header — abre menu lateral com todos os itens */}
+        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#262626]">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(true)}
+            className="text-gray-700 dark:text-gray-200 shrink-0"
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-6 h-6" />
+          </Button>
+          <img
+            src={theme === 'dark' ? '/ff-black.png' : '/ff-white.png'}
+            alt="Franco Forte"
+            className="h-8 w-auto"
+          />
+          <UserAvatar
+            src={user?.foto_url}
+            nome={user?.nome || 'Usuário'}
+            size="sm"
+            className="shrink-0"
+          />
+        </header>
+
         <div className="lg:hidden px-4 py-2">
           <PendingSyncIndicator />
         </div>
@@ -228,35 +243,10 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         {children}
       </main>
 
-      {/* Bottom Navigation (Mobile) */}
-      {filteredBottomNavItems.length > 0 && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-[#262626] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
-          <div className="flex items-stretch justify-around py-2">
-            {filteredBottomNavItems.map((item) => {
-              const isActive = isNavActive(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 min-w-0 flex-1 relative ${
-                    isActive ? 'text-green-600 dark:text-[#FFC107]' : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                >
-                  <item.icon className={`w-6 h-6 ${isActive ? 'text-green-600 dark:text-[#FFC107]' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={`text-xs font-medium truncate ${isActive ? 'text-green-600 dark:text-[#FFC107] font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      )}
-
       {/* Overlay for Mobile Sidebar */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}

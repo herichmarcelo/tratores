@@ -50,3 +50,11 @@ body {
   animation: slideDownToast 0.4s ease-out forwards;
 }
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
