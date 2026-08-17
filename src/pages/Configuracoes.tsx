@@ -96,6 +96,8 @@ export const Configuracoes: React.FC = () => {
     const message = (err as { message?: string })?.message || 'Erro ao salvar.';
     if (message.includes('duplicate') || message.includes('unique')) {
       setError('Já existe um registro com esses dados.');
+    } else if (message.toLowerCase().includes('failed to fetch') || message.toLowerCase().includes('network')) {
+      setError('Não foi possível conectar ao servidor. Verifique a internet e tente novamente.');
     } else {
       setError(message);
     }
@@ -209,8 +211,15 @@ export const Configuracoes: React.FC = () => {
     try {
       let foto_url: string | undefined;
       if (usuarioFotoFile) {
-        setIsUploadingUsuarioFoto(true);
-        foto_url = await uploadToCloudinary(usuarioFotoFile, 'usuarios');
+        try {
+          setIsUploadingUsuarioFoto(true);
+          foto_url = await uploadToCloudinary(usuarioFotoFile, 'usuarios');
+        } catch (photoErr) {
+          const photoMessage = (photoErr as { message?: string })?.message || 'Falha ao enviar a foto.';
+          setError(`Foto não enviada: ${photoMessage} Tente salvar de novo sem a foto, ou ajuste o Cloudinary.`);
+          setIsUploadingUsuarioFoto(false);
+          return;
+        }
         setIsUploadingUsuarioFoto(false);
       }
 

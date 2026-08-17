@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '../services/supabase';
-import { verifyPassword } from '../utils/password';
+import { mapFuncaoToPerfil, mapUsuarioRow, verifyStoredPassword, type UsuarioRow } from '../utils/usuario';
 import type { UserProfile } from '../types/index';
 
 export interface AuthUser {
@@ -46,22 +46,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string): Promise<boolean> => {
     const { data: dbUser, error } = await supabase
       .from('usuarios')
-      .select('id, nome, email, foto_url, perfil, senha_hash, ativo')
+      .select('id, nome_completo, email, foto_url, funcao, senha, ativo')
       .eq('email', email.trim().toLowerCase())
       .maybeSingle();
 
-    if (error || !dbUser || !dbUser.ativo) return false;
-    if (!dbUser.senha_hash) return false;
+    if (error || !dbUser || dbUser.ativo === false) return false;
 
-    const valid = await verifyPassword(password, dbUser.senha_hash);
+    const valid = await verifyStoredPassword(password, dbUser.senha);
     if (!valid) return false;
 
+    const mapped = mapUsuarioRow(dbUser as UsuarioRow);
     const authUser: AuthUser = {
-      id: dbUser.id,
-      nome: dbUser.nome,
-      email: dbUser.email,
-      foto_url: dbUser.foto_url || undefined,
-      role: mapPerfilToRole(dbUser.perfil),
+      id: mapped.id,
+      nome: mapped.nome,
+      email: mapped.email,
+      foto_url: mapped.foto_url,
+      role: mapPerfilToRole(mapFuncaoToPerfil(dbUser.funcao)),
     };
 
     persistUser(authUser);

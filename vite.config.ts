@@ -1,9 +1,20 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const cryptoShim = path.resolve(__dirname, 'src/shims/crypto.ts')
+
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      crypto: cryptoShim,
+      'node:crypto': cryptoShim,
+    },
+  },
   plugins: [
     react(),
     VitePWA({
@@ -39,6 +50,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /^https:\/\/api\.cloudinary\.com\/.*/i,
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],

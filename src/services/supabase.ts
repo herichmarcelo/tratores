@@ -9,8 +9,20 @@ const supabaseKey = (
 
 if (!supabaseUrl || !supabaseKey || supabaseKey === 'placeholder') {
   console.error(
-    'Supabase não configurado. Defina VITE_SUPABASE_ANON_KEY com sua chave publishable (sb_publishable_...) no .env e na Vercel.',
+    'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (chave publishable) no .env.',
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  global: {
+    fetch: async (input, init) => {
+      try {
+        return await fetch(input, init);
+      } catch {
+        throw new Error(
+          `Não foi possível conectar ao Supabase (${supabaseUrl || 'URL vazia'}). Confira VITE_SUPABASE_URL em Settings → API.`,
+        );
+      }
+    },
+  },
+});

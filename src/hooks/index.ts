@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import { hashPassword } from '../utils/password'
+import { mapPerfilToFuncao, mapUsuarioRow, type UsuarioRow } from '../utils/usuario'
 import type { Tractor, Abastecimento, Checklist, Manutencao, Pneu, Fazenda, Setor, User, VwEficienciaTratores, VwConsumoFrota, VwCustosFrota, VwChecklistsPendentes, VwManutencoesAbertas } from '../types'
 
 // Tratores
@@ -116,10 +117,10 @@ export const useUsuarios = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
-        .order('nome')
+        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
+        .order('nome_completo')
       if (error) throw error
-      return data as User[]
+      return (data as UsuarioRow[]).map(mapUsuarioRow)
     },
   })
 }
@@ -143,15 +144,22 @@ export const useCreateUsuario = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: Omit<User, 'id' | 'created_at' | 'updated_at'> & { senha: string }) => {
-      const { senha, ...usuario } = input
-      const senha_hash = await hashPassword(senha)
+      const senhaHash = await hashPassword(input.senha)
+      const payload = {
+        nome_completo: input.nome.trim(),
+        email: input.email.trim().toLowerCase(),
+        senha: senhaHash,
+        funcao: mapPerfilToFuncao(input.perfil),
+        foto_url: input.foto_url || null,
+        ativo: input.ativo ?? true,
+      }
       const { data, error } = await supabase
         .from('usuarios')
-        .insert({ ...usuario, senha_hash, email: usuario.email.trim().toLowerCase() })
-        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
+        .insert(payload)
+        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
         .single()
       if (error) throw error
-      return data as User
+      return mapUsuarioRow(data as UsuarioRow)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
@@ -163,21 +171,21 @@ export const useUpdateUsuario = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, senha, ...updates }: Partial<User> & { id: string; senha?: string }) => {
-      const payload: Record<string, unknown> = { ...updates }
-      if (updates.email) {
-        payload.email = updates.email.trim().toLowerCase()
-      }
-      if (senha) {
-        payload.senha_hash = await hashPassword(senha)
-      }
+      const payload: Record<string, unknown> = {}
+      if (updates.nome !== undefined) payload.nome_completo = updates.nome.trim()
+      if (updates.email) payload.email = updates.email.trim().toLowerCase()
+      if (updates.foto_url !== undefined) payload.foto_url = updates.foto_url
+      if (updates.ativo !== undefined) payload.ativo = updates.ativo
+      if (updates.perfil) payload.funcao = mapPerfilToFuncao(updates.perfil)
+      if (senha) payload.senha = await hashPassword(senha)
       const { data, error } = await supabase
         .from('usuarios')
         .update(payload)
         .eq('id', id)
-        .select('id, nome, email, cargo, perfil, foto_url, ativo, created_at, updated_at')
+        .select('id, nome_completo, email, funcao, foto_url, ativo, created_at')
         .single()
       if (error) throw error
-      return data as User
+      return mapUsuarioRow(data as UsuarioRow)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
