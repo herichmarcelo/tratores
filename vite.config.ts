@@ -50,16 +50,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkOnly',
-          },
-          {
-            urlPattern: /^https:\/\/api\.cloudinary\.com\/.*/i,
-            handler: 'NetworkOnly',
-          },
-        ],
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        navigateFallbackDenylist: [/^https?:\/\/.*supabase\.co/i, /^https?:\/\/api\.cloudinary\.com/i],
       },
     }),
   ],

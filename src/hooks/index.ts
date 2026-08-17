@@ -13,7 +13,12 @@ export const useTratores = () => {
         .from('tratores')
         .select('*, fazenda:fazendas(*)')
         .order('patrimonio')
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          return [] as Tractor[]
+        }
+        throw error
+      }
       return data as Tractor[]
     },
   })
@@ -104,7 +109,12 @@ export const useFazendas = () => {
         .from('fazendas')
         .select('*')
         .order('nome')
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          return [] as Fazenda[]
+        }
+        throw error
+      }
       return data as Fazenda[]
     },
   })
@@ -134,7 +144,12 @@ export const useSetores = () => {
         .from('setores')
         .select('*, fazenda:fazendas(*)')
         .order('nome')
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          return [] as Setor[]
+        }
+        throw error
+      }
       return data as Setor[]
     },
   })
