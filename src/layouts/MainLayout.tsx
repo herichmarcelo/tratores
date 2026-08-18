@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', shortLabel: 'Home', icon: Home, path: '/dashboard', perfis: ['administrador', 'gestor'] },
   { label: 'Tratores', shortLabel: 'Tratores', icon: Tractor, path: '/tratores', perfis: ['administrador', 'gestor'] },
   { label: 'Abastecimentos', shortLabel: 'Abastec.', icon: Fuel, path: '/abastecimento', perfis: ['administrador', 'gestor', 'colaborador'] },
-  { label: 'Compra de Combustível', icon: Truck, path: '/compra-combustivel', perfis: ['administrador', 'gestor'] },
+  { label: 'Compra de Combustível', shortLabel: 'Combustível', icon: Truck, path: '/compra-combustivel', perfis: ['administrador', 'gestor'] },
   { label: 'Checklists', shortLabel: 'Checklist', icon: ClipboardList, path: '/checklists', perfis: ['administrador', 'gestor', 'colaborador'] },
   { label: 'Manutenção', shortLabel: 'Manuten.', icon: Wrench, path: '/manutencao', perfis: ['administrador', 'gestor'] },
   { label: 'Relatórios', shortLabel: 'Relatórios', icon: FileText, path: '/relatorios', perfis: ['administrador', 'gestor'] },
@@ -95,24 +95,24 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#0A0A0A]">
-      {/* Desktop Sidebar */}
+      {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-64 bg-gradient-to-b from-[#0A4D28] to-[#083D20] dark:from-[#111111] dark:to-[#0A0A0A] text-white dark:text-gray-100 transform transition-transform duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[min(16rem,86vw)] flex-col
+          bg-gradient-to-b from-[#0A4D28] to-[#083D20] dark:from-[#111111] dark:to-[#0A0A0A]
+          text-white dark:text-gray-100 transform transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="p-6 border-b border-green-700 dark:border-[#262626]">
-          <div className="flex items-center gap-3">
-            <img
-              src={theme === 'dark' ? '/ff-black.png' : '/ff-white.png'}
-              alt="Logo"
-              className="h-10 w-auto"
-            />
-          </div>
+        <div className="shrink-0 border-b border-green-700 dark:border-[#262626] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <img
+            src={theme === 'dark' ? '/ff-black.png' : '/ff-white.png'}
+            alt="Frango Forte"
+            className="h-12 w-auto max-w-full object-contain object-left"
+          />
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 space-y-1">
           {filteredNavItems.map((item) => {
             const isActive = isNavActive(item.path);
             return (
@@ -121,7 +121,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
+                  flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200
                   ${
                     isActive
                       ? 'bg-yellow-400 dark:bg-[#FFC107] text-green-900 dark:text-[#0A0A0A] font-semibold shadow-lg'
@@ -129,16 +129,17 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                   }
                 `}
               >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                <item.icon className="w-5 h-5 shrink-0" />
+                <span className="truncate text-sm leading-tight lg:hidden">{item.shortLabel || item.label}</span>
+                <span className="hidden truncate text-sm leading-tight lg:inline">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-green-700 dark:border-[#262626]">
-          <div className="mb-4 p-3 bg-green-700/50 dark:bg-[#171717] rounded-lg">
-            <div className="flex items-center gap-3">
+        <div className="shrink-0 border-t border-green-700 dark:border-[#262626] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mb-3 p-2.5 bg-green-700/50 dark:bg-[#171717] rounded-lg">
+            <div className="flex items-center gap-3 min-w-0">
               <UserAvatar
                 src={user?.foto_url}
                 nome={user?.nome || 'Usuário'}
@@ -147,16 +148,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 onUpload={handlePhotoUpload}
                 isUploading={uploadingPhoto}
               />
-              <div>
-                <p className="font-medium text-white dark:text-gray-100">{user?.nome}</p>
-              </div>
+              <p className="font-medium text-white dark:text-gray-100 truncate">{user?.nome}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="flex-1 text-green-200 dark:text-gray-300 hover:text-white dark:hover:text-white hover:bg-green-700 dark:hover:bg-[#262626] rounded-lg"
+              className="shrink-0 text-green-200 dark:text-gray-300 hover:text-white dark:hover:text-white hover:bg-green-700 dark:hover:bg-[#262626] rounded-lg"
               onClick={toggleTheme}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -166,7 +165,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
               className="flex-1 justify-start text-green-200 dark:text-gray-300 hover:text-white dark:hover:text-white hover:bg-green-700 dark:hover:bg-[#262626] rounded-lg"
               onClick={handleLogout}
             >
-              <LogOut className="w-5 h-5 mr-2" />
+              <LogOut className="w-5 h-5 mr-2 shrink-0" />
               Sair
             </Button>
           </div>

@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  BarChart3,
 } from 'lucide-react';
 import {
   LineChart,
@@ -45,9 +46,17 @@ import { useTheme } from '../contexts/ThemeContext';
 import { TopCostlyTractorsCard } from '../components/TopCostlyTractorsCard';
 import { useManutencaoAlerts } from '../hooks';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
-import { getNivelBadgeClasses } from '../utils/manutencaoAlerts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import type { LucideIcon } from 'lucide-react';
+
+type AlertaDashboard = {
+  id: number;
+  type: string;
+  message: string;
+  icon: LucideIcon;
+  link?: string;
+};
 
 export const Dashboard: React.FC = () => {
   const { theme } = useTheme();
@@ -55,7 +64,7 @@ export const Dashboard: React.FC = () => {
   const { data: abastecimentos, isLoading: abastecimentosLoading } = useAbastecimentos();
   const { data: manutencoes, isLoading: manutencoesLoading } = useManutencoes();
   const { data: fazendas } = useFazendas();
-  const { alertasCriticos, isLoading: alertasManutLoading } = useManutencaoAlerts();
+  const { alertasCriticos } = useManutencaoAlerts();
   const { installPrompt, install, isInstalled } = useInstallPrompt();
 
   const today = new Date();
@@ -129,6 +138,12 @@ export const Dashboard: React.FC = () => {
   const economiaPercentual = lastCustoPorHora > 0
     ? ((lastCustoPorHora - custoPorHora) / lastCustoPorHora) * 100
     : 0;
+
+  const totalLitrosPeriodo = filteredAbastecimentos.reduce((sum, a) => sum + (a.litros_abastecidos || 0), 0);
+  const cmpPeriodo = totalLitrosPeriodo > 0 ? totalCombustivel / totalLitrosPeriodo : 0;
+  const totalLitrosLastMonth = lastMonthAbastecimentos.reduce((sum, a) => sum + (a.litros_abastecidos || 0), 0);
+  const cmpLastMonth = totalLitrosLastMonth > 0 ? lastTotalCombustivel / totalLitrosLastMonth : 0;
+  const cmpVariacao = cmpLastMonth > 0 ? ((cmpPeriodo - cmpLastMonth) / cmpLastMonth) * 100 : 0;
 
   const consumoMedioFrota = useMemo(() => {
     if (filteredAbastecimentos.length === 0) return 0;
@@ -249,7 +264,7 @@ export const Dashboard: React.FC = () => {
   }, [totalCombustivel, totalManutencao]);
 
   const alertas = useMemo(() => {
-    const alerts = [];
+    const alerts: AlertaDashboard[] = [];
 
     if (consumoMedioFrota > 12) {
       alerts.push({
@@ -476,7 +491,7 @@ export const Dashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600 dark:text-[#B3B3B3]">Gasto Total</CardTitle>
@@ -587,6 +602,39 @@ export const Dashboard: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-[#B3B3B3]">CMP Diesel</CardTitle>
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-8 w-24 bg-gray-200 dark:bg-[#1A1A1A] rounded animate-pulse" />
+            ) : (
+              <div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  R$ {cmpPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div className="flex items-center gap-1 text-xs mt-1">
+                  {cmpVariacao <= 0 ? (
+                    <>
+                      <TrendingDown className="w-3 h-3 text-green-600" />
+                      <span className="text-green-600">{Math.abs(cmpVariacao).toFixed(1)}% vs mês ant.</span>
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="w-3 h-3 text-red-600" />
+                      <span className="text-red-600">+{cmpVariacao.toFixed(1)}% vs mês ant.</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Linha 1: Evolução dos Custos 100% */}
@@ -636,6 +684,10 @@ export const Dashboard: React.FC = () => {
             {isLoading ? (
               <div className="h-64 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+              </div>
+            ) : consumoPorTrator.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                Sem dados de consumo no período
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={256}>
@@ -816,9 +868,8 @@ export const Dashboard: React.FC = () => {
             <div className="space-y-3">
               {alertas.map((alerta) => {
                 const Icon = alerta.icon;
-                return (
+                const content = (
                   <div
-                    key={alerta.id}
                     className={`p-4 rounded-lg border flex items-center gap-3 ${
                       alerta.type === 'success' ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
                       alerta.type === 'danger' ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
@@ -841,55 +892,12 @@ export const Dashboard: React.FC = () => {
                     </p>
                   </div>
                 );
+                if (alerta.link) {
+                  return <Link key={alerta.id} to={alerta.link}>{content}</Link>;
+                }
+                return <React.Fragment key={alerta.id}>{content}</React.Fragment>;
               })}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-gray-200 dark:border-[#2A2A2A] bg-white dark:bg-[#141414] shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-ff-yellow" /> Manutenção Preventiva
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {alertasManutLoading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin text-ff-yellow" />
-              </div>
-            ) : alertasCriticos.length === 0 ? (
-              <p className="text-sm text-ff-green-active font-medium py-2">✅ Todos os tratores em dia</p>
-            ) : (
-              <div className="space-y-3">
-                {alertasCriticos.slice(0, 4).map((alerta) => (
-                  <div
-                    key={alerta.trator_id}
-                    className={`p-3 rounded-lg border flex items-start gap-3 ${
-                      alerta.nivel === 'vermelho'
-                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-                        : 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
-                    }`}
-                  >
-                    <Wrench className={`w-4 h-4 shrink-0 mt-0.5 ${
-                      alerta.nivel === 'vermelho' ? 'text-red-500' : 'text-orange-400'
-                    }`} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{alerta.patrimonio}</p>
-                      <p className={`text-xs mt-0.5 ${getNivelBadgeClasses(alerta.nivel).split(' ')[1]}`}>
-                        {alerta.horas_restantes <= 0
-                          ? `Vencida há ${Math.abs(alerta.horas_restantes).toFixed(0)}h`
-                          : `Faltam ${alerta.horas_restantes.toFixed(0)}h`}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Link to="/manutencao">
-              <Button variant="outline" className="w-full mt-4 border-gray-200 dark:border-[#2A2A2A] text-gray-700 dark:text-white hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
-                Ver Manutenção
-              </Button>
-            </Link>
           </CardContent>
         </Card>
 
