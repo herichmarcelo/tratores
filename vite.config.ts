@@ -18,7 +18,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: false,
+      injectRegister: 'auto',
       includeAssets: [
         'favicon.svg',
         'icon-192.png',

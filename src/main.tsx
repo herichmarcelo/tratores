@@ -1,7 +1,6 @@
 import { StrictMode, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import AppRoutes from './routes/index'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -13,13 +12,6 @@ const ReactQueryDevtools = import.meta.env.DEV
       })),
     )
   : () => null
-
-registerSW({
-  immediate: true,
-  onOfflineReady() {
-    console.info('[PWA] App pronto para uso offline')
-  },
-})
 
 const queryClient = new QueryClient({
   defaultOptions: {
