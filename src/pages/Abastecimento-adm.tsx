@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -48,6 +49,7 @@ export const AbastecimentoAdm: React.FC = () => {
   const [selectedFarmId, setSelectedFarmId] = useState('');
   const [selectedSectorId, setSelectedSectorId] = useState('');
   const [selectedTankId, setSelectedTankId] = useState('');
+  const [dataAbastecimento, setDataAbastecimento] = useState(() => new Date().toISOString().split('T')[0]);
 
   const toggleTheme = () => {
     setPreference(theme === 'dark' ? 'light' : 'dark');
@@ -141,7 +143,7 @@ export const AbastecimentoAdm: React.FC = () => {
         litros: lit,
         horimetro_inicial: ini,
         horimetro_final: fin,
-        data_abastecimento: new Date(),
+        data_abastecimento: new Date(`${dataAbastecimento}T12:00:00`),
       });
       if (result.mode === 'offline') {
         alert('Abastecimento salvo offline. Será sincronizado quando a internet voltar.');
@@ -238,7 +240,7 @@ export const AbastecimentoAdm: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase flex items-center gap-1"><Calendar className="w-3.5 h-3.5"/> Data</label>
-                    <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white" />
+                    <DatePicker value={dataAbastecimento} onChange={setDataAbastecimento} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase">Trator *</label>

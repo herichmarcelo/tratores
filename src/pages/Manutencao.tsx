@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -315,11 +316,9 @@ export const Manutencao: React.FC = () => {
                       <label className="text-xs font-medium text-gray-600 dark:text-[#B3B3B3] uppercase mb-1 block">
                         Data
                       </label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={form.data}
-                        onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                        className="border-gray-200 dark:border-[#2A2A2A] dark:bg-[#1A1A1A] dark:text-white"
+                        onChange={(data) => setForm((f) => ({ ...f, data }))}
                       />
                     </div>
                   </div>

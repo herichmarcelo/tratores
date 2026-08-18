@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   Fuel,
-  Calendar,
   Clock,
   DollarSign,
   ChevronRight,
@@ -35,7 +34,7 @@ import {
 } from 'recharts';
 import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
-import { Input } from '../components/ui/input';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { TractorImage } from '../components/TractorImage';
@@ -337,20 +336,19 @@ const Relatorios: React.FC = () => {
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 border border-gray-200 dark:border-[#2A2A2A] rounded-lg px-3 py-2 bg-white dark:bg-[#1A1A1A]">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <Input
-                type="date"
+            <div className="flex flex-wrap items-center gap-2">
+              <DatePicker
                 value={startDate}
-                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                className="border-0 p-0 h-auto w-32 bg-transparent dark:text-white"
+                onChange={(value) => { setStartDate(value); setPage(1); }}
+                compact
+                className="w-[10.5rem]"
               />
               <span className="text-gray-400">—</span>
-              <Input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                className="border-0 p-0 h-auto w-32 bg-transparent dark:text-white"
+                onChange={(value) => { setEndDate(value); setPage(1); }}
+                compact
+                className="w-[10.5rem]"
               />
             </div>
             <Select
