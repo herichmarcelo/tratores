@@ -27,10 +27,10 @@ export default defineConfig({
         'ff-white.png',
       ],
       manifest: {
-        name: 'Franco Forte - Gestão de Frotas',
-        short_name: 'Franco Forte',
+        name: 'Frango Forte - Gestão de Frotas',
+        short_name: 'Frango Forte',
         description: 'Sistema de gestão de frotas agrícolas',
-        theme_color: '#facc15',
+        theme_color: '#0A0A0A',
         background_color: '#0A0A0A',
         display: 'standalone',
         orientation: 'portrait',

@@ -21,6 +21,7 @@ import { Badge } from '../components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTratores, useChecklists, useOfflineCreateChecklist, useUsuarios, useOnlineStatus, useOfflineSync } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { TractorImage } from '../components/TractorImage';
 import type { Tractor, User as UserType } from '../types';
 
 // Types for checklist items
@@ -242,19 +243,14 @@ export const Checklists: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                        {checklist.trator?.imagem_url ? (
-                          <img
-                            src={checklist.trator.imagem_url}
-                            alt={checklist.trator.patrimonio}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <img
-                            src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                            alt="Trator"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
+                        <TractorImage
+                          src={checklist.trator?.imagem_url}
+                          alt={checklist.trator?.patrimonio || 'Trator'}
+                          size="md"
+                          fit="cover"
+                          bordered={false}
+                          className="w-16 h-16 rounded-lg"
+                        />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
@@ -313,21 +309,12 @@ export const Checklists: React.FC = () => {
                             <Loader2 className="w-5 h-5 animate-spin text-ff-yellow" />
                           ) : selectedTrator ? (
                             <>
-                              <div className="w-12 h-12 rounded overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                                {selectedTrator.imagem_url ? (
-                                  <img
-                                    src={selectedTrator.imagem_url}
-                                    alt={selectedTrator.patrimonio}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <img
-                                    src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                                    alt="Trator"
-                                    className="w-full h-full object-cover"
-                                  />
-                                )}
-                              </div>
+                              <TractorImage
+                                src={selectedTrator.imagem_url}
+                                alt={selectedTrator.patrimonio}
+                                size="sm"
+                                fit="cover"
+                              />
                               <div className="flex-1">
                                 <h4 className="text-base font-bold text-gray-900 dark:text-white">
                                   {selectedTrator.patrimonio}
@@ -358,21 +345,12 @@ export const Checklists: React.FC = () => {
                                 }}
                                 className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] text-left transition-colors"
                               >
-                                <div className="w-10 h-10 rounded overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex items-center justify-center">
-                                  {trator.imagem_url ? (
-                                    <img
-                                      src={trator.imagem_url}
-                                      alt={trator.patrimonio}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <img
-                                      src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=100&h=100&fit=crop"
-                                      alt="Trator"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  )}
-                                </div>
+                                <TractorImage
+                                  src={trator.imagem_url}
+                                  alt={trator.patrimonio}
+                                  size="sm"
+                                  fit="cover"
+                                />
                                 <div className="flex-1">
                                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                                     {trator.patrimonio}
@@ -555,34 +533,6 @@ export const Checklists: React.FC = () => {
                 <CardContent className="p-4 lg:p-6">
                   <h3 className="text-sm font-semibold text-gray-600 dark:text-[#B3B3B3] uppercase mb-4">Evidências (Fotos)</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A]">
-                      <img
-                        src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=300&h=300&fit=crop"
-                        alt="Painel"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A]">
-                      <img
-                        src="https://images.unsplash.com/photo-1592195683094-900d68287b03?w=300&h=300&fit=crop"
-                        alt="Horímetro"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A]">
-                      <img
-                        src="https://images.unsplash.com/photo-1599835269762-d6e10054c684?w=300&h=300&fit=crop"
-                        alt="Traseira"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A]">
-                      <img
-                        src="https://images.unsplash.com/photo-1599835269762-d6e10054c684?w=300&h=300&fit=crop"
-                        alt="Pneus Dianteiros"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
                     <button className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-[#2A2A2A] bg-gray-50 dark:bg-[#1A1A1A] flex flex-col items-center justify-center gap-2 hover:border-ff-yellow hover:bg-ff-yellow/10 transition-colors cursor-pointer">
                       <Camera className="w-6 h-6 text-gray-400 dark:text-[#B3B3B3] hover:text-ff-yellow" />
                       <span className="text-xs text-gray-500 dark:text-[#B3B3B3] hover:text-ff-yellow">Adicionar Foto</span>

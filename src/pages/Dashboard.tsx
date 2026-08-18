@@ -196,13 +196,7 @@ export const Dashboard: React.FC = () => {
         }
       }
     });
-    const data = Array.from(fazendaMap.values()).filter(f => f.total > 0);
-    return data.length ? data : [
-      { nome: 'Matriz', total: 45000 },
-      { nome: 'Santa Luzia', total: 32000 },
-      { nome: 'Boa Vista', total: 28000 },
-      { nome: 'Lavoura Norte', total: 24000 },
-    ];
+    return Array.from(fazendaMap.values()).filter(f => f.total > 0);
   }, [fazendas, filteredAbastecimentos, filteredManutencoes, tratores]);
 
   const consumoPorTrator = useMemo(() => {
@@ -234,10 +228,10 @@ export const Dashboard: React.FC = () => {
       .reduce((sum, m) => sum + (m.valor || 0), 0);
 
     return [
-      { name: 'Preventiva', value: preventiva > 0 ? preventiva : 4500 },
-      { name: 'Corretiva', value: corretiva > 0 ? corretiva : 8200 },
-      { name: 'Outros', value: outros > 0 ? outros : 1500 },
-    ];
+      { name: 'Preventiva', value: preventiva },
+      { name: 'Corretiva', value: corretiva },
+      { name: 'Outros', value: outros },
+    ].filter(item => item.value > 0);
   }, [filteredManutencoes]);
 
   const projecaoGastos = useMemo(() => {
@@ -713,6 +707,10 @@ export const Dashboard: React.FC = () => {
               <div className="h-48 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
               </div>
+            ) : custosPorFazenda.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                Sem dados no período selecionado
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -747,6 +745,10 @@ export const Dashboard: React.FC = () => {
             {isLoading ? (
               <div className="h-48 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+              </div>
+            ) : custosManutencaoPorTipo.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                Sem dados no período selecionado
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>

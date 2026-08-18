@@ -190,7 +190,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
           </Button>
           <img
             src={theme === 'dark' ? '/ff-black.png' : '/ff-white.png'}
-            alt="Franco Forte"
+            alt="Frango Forte"
             className="h-8 w-auto"
           />
           <UserAvatar
